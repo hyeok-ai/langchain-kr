@@ -1,0 +1,30 @@
+graph TD
+    classDef titleBlock fill:transparent,color:#111,stroke:transparent,font-size:24px,font-weight:bold;
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef funcBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Title["<span style='white-space:nowrap'>02. Age 컬럼 조회: plan_chain.invoke() + query_chain.invoke()</span>"]:::titleBlock
+    Input["{'question': 'Age column 을 조회해 주세요.'}"]:::codeBlock
+
+    Plan["plan_chain<br/>prompt | llm.with_structured_output(DataFrameQuery)"]:::chainBlock
+    PlanExec["plan = plan_chain.invoke({<br/>'question': 'Age column 을 조회해 주세요.'<br/>})<br/>print(plan)"]:::execBlock
+    PlanResult["DataFrameQuery 계획 객체<br/>(질문의 의도상)<br/>operation = 'column'<br/>column = 'Age'<br/>row_start = None<br/>row_end = None"]:::resultBlock
+
+    Query["query_chain<br/>plan_chain | RunnableLambda(lambda q: run_query(df, q))"]:::chainBlock
+    QueryExec["query_chain.invoke({<br/>'question': 'Age column 을 조회해 주세요.'<br/>}).head()"]:::execBlock
+    Run["run_query(df, q)<br/>start = 0<br/>stop = None<br/>subset = df.iloc[0:None]<br/>series = subset['Age']<br/>q.operation == 'column'<br/>return series"]:::funcBlock
+    Result["pandas Series: Age<br/>→ invoke() 반환값에 .head() 적용"]:::resultBlock
+
+    Title ~~~ Input
+    Input == "1A. 같은 질문을 계획 체인에 주입" ==> PlanExec
+    Plan -. "조립된 plan_chain" .-> PlanExec
+    PlanExec == "2A. 구조화 계획 반환" ==> PlanResult
+
+    Input == "1B. 같은 질문을 실행 체인에 주입" ==> QueryExec
+    Query -. "조립된 query_chain" .-> QueryExec
+    QueryExec == "2B. 내부에서 plan_chain 실행" ==> PlanResult
+    PlanResult == "3. DataFrameQuery가 RunnableLambda 입력 q가 됨" ==> Run
+    Run == "4. Age Series 반환" ==> Result

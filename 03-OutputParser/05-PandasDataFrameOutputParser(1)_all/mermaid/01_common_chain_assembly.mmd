@@ -1,0 +1,40 @@
+graph TD
+    classDef titleBlock fill:transparent,color:#111,stroke:transparent,font-size:24px,font-weight:bold;
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef structBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef funcBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Title["<span style='white-space:nowrap'>01. 공통 구성: DataFrame → 스키마 → plan_chain → query_chain</span>"]:::titleBlock
+
+    DF["import pandas as pd<br/>df = pd.read_csv('./data/titanic.csv')<br/>df.head()"]:::codeBlock
+
+    Columns["ColumnName = Literal[tuple(df.columns)]<br/><br/>예: Literal['PassengerId', 'Survived', 'Pclass', 'Name',<br/>'Sex', 'Age', 'SibSp', 'Parch', 'Ticket', 'Fare', ...]"]:::schemaBlock
+
+    Schema["class DataFrameQuery(BaseModel):<br/>operation: Literal['column', 'row', 'mean', 'sum', 'min', 'max', 'count']<br/>column: ColumnName | None<br/>row_start: int | None<br/>row_end: int | None"]:::schemaBlock
+
+    RunQuery["def run_query(df: pd.DataFrame, q: DataFrameQuery):<br/>start = q.row_start if q.row_start is not None else 0<br/>stop = q.row_end + 1 if q.row_end is not None else None<br/>subset = df.iloc[start:stop]<br/><br/>if q.operation == 'row': return subset<br/>if q.column is None: raise ValueError(...)<br/>series = subset[q.column]<br/><br/>if q.operation == 'column': return series<br/>if q.operation == 'count': return int(series.count())<br/>if not pd.api.types.is_numeric_dtype(series): raise ValueError(...)<br/>return getattr(series, q.operation)()"]:::funcBlock
+
+    Prompt["prompt = ChatPromptTemplate.from_messages([<br/>('system', '사용자의 요청을 DataFrame 조회 계획으로 변환하세요.\nDataFrame 컬럼과 타입:\n{schema}'),<br/>('human', '{question}')<br/>]).partial(schema=df.dtypes.to_string())"]:::codeBlock
+
+    LLM["llm = init_chat_model(<br/>'openai:gpt-4.1-mini',<br/>temperature=0<br/>)"]:::codeBlock
+
+    Structured["llm.with_structured_output(DataFrameQuery)"]:::structBlock
+    Plan["plan_chain = prompt | llm.with_structured_output(DataFrameQuery)"]:::chainBlock
+
+    Lambda["RunnableLambda(<br/>lambda q: run_query(df, q)<br/>)"]:::funcBlock
+    Query["query_chain = plan_chain | RunnableLambda(lambda q: run_query(df, q))"]:::chainBlock
+
+    Title ~~~ DF
+    DF == "1. df.columns에서 허용 컬럼 목록 생성" ==> Columns
+    Columns == "2. ColumnName 타입으로 스키마에 결합" ==> Schema
+    DF == "3. df.dtypes.to_string()을 {schema}에 미리 주입" ==> Prompt
+    LLM == "4. 원본 LLM" ==> Structured
+    Schema == "5. DataFrameQuery 스키마를 LLM에 설정" ==> Structured
+    Prompt == "6. Prompt 객체 결합" ==> Plan
+    Structured == "7. 구조화 출력 LLM 결합" ==> Plan
+    RunQuery == "8. 실행 함수" ==> Lambda
+    DF -. "run_query가 실제 DataFrame 사용" .-> Lambda
+    Plan == "9. 계획 체인 출력(DataFrameQuery)을 다음 단계로 전달" ==> Query
+    Lambda == "10. 계획 객체를 pandas 실행으로 변환" ==> Query

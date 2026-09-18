@@ -1,0 +1,30 @@
+graph TD
+    classDef titleBlock fill:transparent,color:#111,stroke:transparent,font-size:24px,font-weight:bold;
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef funcBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Title["<span style='white-space:nowrap'>03. 첫 번째 행 조회: row 계획 → df.iloc 슬라이싱</span>"]:::titleBlock
+    Input["{'question': 'Retrieve the first row.'}"]:::codeBlock
+
+    Plan["plan_chain<br/>prompt | llm.with_structured_output(DataFrameQuery)"]:::chainBlock
+    PlanExec["print(plan_chain.invoke({<br/>'question': 'Retrieve the first row.'<br/>}))"]:::execBlock
+    PlanResult["DataFrameQuery 계획 객체<br/>(질문의 의도상)<br/>operation = 'row'<br/>column = None<br/>row_start = 0<br/>row_end = 0"]:::resultBlock
+
+    Query["query_chain<br/>plan_chain | RunnableLambda(lambda q: run_query(df, q))"]:::chainBlock
+    QueryExec["query_chain.invoke({<br/>'question': 'Retrieve the first row.'<br/>})"]:::execBlock
+    Run["run_query(df, q)<br/>start = q.row_start → 0<br/>stop = q.row_end + 1 → 1<br/>subset = df.iloc[0:1]<br/><br/>if q.operation == 'row':<br/>return subset"]:::funcBlock
+    Result["pandas DataFrame<br/>→ 첫 번째 행만 포함한 subset"]:::resultBlock
+
+    Title ~~~ Input
+    Input == "1A. plan_chain.invoke()" ==> PlanExec
+    Plan -. "조립된 plan_chain" .-> PlanExec
+    PlanExec == "2A. 구조화 계획 반환" ==> PlanResult
+
+    Input == "1B. query_chain.invoke()" ==> QueryExec
+    Query -. "조립된 query_chain" .-> QueryExec
+    QueryExec == "2B. 내부 plan_chain 결과" ==> PlanResult
+    PlanResult == "3. q로 전달" ==> Run
+    Run == "4. row 분기에서 즉시 반환" ==> Result

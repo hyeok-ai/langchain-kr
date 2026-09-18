@@ -1,0 +1,32 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef noteBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef structBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Note["선택 예제<br/>노트북에서는 전체 코드가 주석 처리되어 있음<br/>Ollama 설치 + 모델 다운로드 후 주석 해제 시 실행"]:::noteBlock
+
+    Schema["AnswerWithSource(TypedDict)<br/>├─ answer<br/>└─ source"]:::schemaBlock
+
+    Prompt["prompt<br/>└─ ChatPromptTemplate.from_messages([...])<br/>   └─ {question}"]:::codeBlock
+
+    LocalLLM["local_llm = init_chat_model(<br/>    'ollama:llama3.1',<br/>    temperature=0<br/>)"]:::codeBlock
+
+    Struct["local_llm.with_structured_output(<br/>    AnswerWithSource<br/>)"]:::structBlock
+
+    Chain["local_chain = prompt |<br/>              local_llm.with_structured_output(AnswerWithSource)"]:::chainBlock
+
+    Exec["local_chain.invoke({<br/>    'question': '대한민국의 수도는 어디인가요?'<br/>})"]:::execBlock
+
+    Result["dict 형태 구조화 결과<br/>├─ answer<br/>└─ source"]:::resultBlock
+
+    Note -. "주석 해제 후" .-> LocalLLM
+    Schema == "1. TypedDict 스키마" ==> Struct
+    LocalLLM == "2. 로컬 LLM" ==> Struct
+    Prompt == "3. Prompt 객체 결합" ==> Chain
+    Struct == "4. 구조화 출력 Local LLM 결합" ==> Chain
+    Chain -. "조립된 local_chain" .-> Exec
+    Exec == "5. invoke()" ==> Result

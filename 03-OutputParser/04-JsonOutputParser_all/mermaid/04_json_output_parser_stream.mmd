@@ -1,0 +1,32 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef parserBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef promptBlock fill:#1e1e1e,color:#d4d4d4,stroke:#9cdcfe,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Schema["Topic<br/>BaseModel<br/>├─ description: str<br/>└─ hashtags: list[str]"]:::schemaBlock
+    Parser["parser = JsonOutputParser(<br/>    pydantic_object=Topic<br/>)"]:::parserBlock
+    Format["parser.get_format_instructions()<br/>└─ JSON 출력 형식 지침 문자열"]:::parserBlock
+    PromptBase["ChatPromptTemplate.from_messages([<br/>    ('system', '당신은 친절한 AI 어시스턴트 입니다. 질문에 간결하게 답변하세요.'),<br/>    ('human', '#Format: {format_instructions}\n\n#Question: {question}')<br/>])"]:::promptBlock
+    ParserPrompt["parser_prompt = (...).partial(<br/>    format_instructions=parser.get_format_instructions()<br/>)<br/><br/>실행 시 남은 구멍:<br/>└─ {question}"]:::promptBlock
+    LLM["llm = init_chat_model(<br/>    'openai:gpt-4.1-mini',<br/>    temperature=0<br/>)"]:::codeBlock
+    Chain["parser_chain = parser_prompt | llm | parser"]:::chainBlock
+    Question["question =<br/>'지구 온난화의 심각성 대해 알려주세요.'"]:::codeBlock
+    Exec["for partial in parser_chain.stream({<br/>    'question': question<br/>}):<br/>    print(partial)"]:::execBlock
+    Partial1["partial<br/>└─ 불완전한 JSON에서 파싱된 부분 dict"]:::resultBlock
+    PartialN["partial<br/>└─ 점점 채워지는 dict"]:::resultBlock
+
+    Schema == "1. Topic 스키마를 Parser에 설정" ==> Parser
+    Parser == "2. 형식 지침 생성" ==> Format
+    PromptBase == "3. 원본 PromptTemplate" ==> ParserPrompt
+    Format -. "4. partial()로 {format_instructions} 미리 주입" .-> ParserPrompt
+    ParserPrompt == "5. Prompt 객체 결합" ==> Chain
+    LLM == "6. LLM 객체 결합" ==> Chain
+    Parser == "7. JsonOutputParser 객체 결합" ==> Chain
+    Chain -. "조립된 parser_chain" .-> Exec
+    Question == "8. stream() 시 {question} 주입" ==> Exec
+    Exec == "9. 부분 파싱 결과 순차 반환" ==> Partial1
+    Partial1 -. "다음 partial" .-> PartialN

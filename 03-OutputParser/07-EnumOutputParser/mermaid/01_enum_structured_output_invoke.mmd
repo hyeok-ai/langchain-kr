@@ -1,0 +1,37 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef structBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Enum["class Colors(Enum):<br/>    RED = '빨간색'<br/>    GREEN = '초록색'<br/>    BLUE = '파란색'"]:::schemaBlock
+
+    Schema["class ColorAnswer(BaseModel):<br/>    '''물체의 색깔 분류 결과'''<br/>    color: Colors = Field(<br/>        description='물체의 대표 색깔'<br/>    )<br/>    reason: str = Field(<br/>        description='그렇게 판단한 짧은 이유'<br/>    )"]:::schemaBlock
+
+    LLM["llm = init_chat_model(<br/>    'openai:gpt-4.1-mini',<br/>    temperature=0<br/>)"]:::codeBlock
+
+    Structured["llm.with_structured_output(<br/>    ColorAnswer<br/>)"]:::structBlock
+
+    Prompt["prompt = ChatPromptTemplate.from_template(<br/>    '다음의 물체는 어떤 색깔인가요?\\n\\nObject: {object}'<br/>)"]:::codeBlock
+
+    Chain["chain = prompt |<br/>llm.with_structured_output(ColorAnswer)"]:::chainBlock
+
+    Input["{'object': '하늘'}"]:::codeBlock
+
+    Exec["response = chain.invoke({<br/>    'object': '하늘'<br/>})"]:::execBlock
+
+    Result["response : ColorAnswer<br/><br/>response.color  → Colors.BLUE<br/>response.reason → 판단 이유 문자열"]:::resultBlock
+
+    Inspect["type(response.color) → Colors Enum 타입<br/>response.color.value → '파란색'"]:::resultBlock
+
+    Enum == "1. Enum을 필드 타입으로 사용" ==> Schema
+    LLM == "2. 원본 LLM" ==> Structured
+    Schema == "3. Pydantic 스키마를 LLM에 설정" ==> Structured
+    Prompt == "4. Prompt 객체 결합" ==> Chain
+    Structured == "5. 구조화 출력 LLM 객체 결합" ==> Chain
+    Chain -. "조립된 chain" .-> Exec
+    Input == "6. invoke() 시 {object} 주입" ==> Exec
+    Exec == "7. ColorAnswer 객체 반환" ==> Result
+    Result -. "후처리 / 타입 확인" .-> Inspect

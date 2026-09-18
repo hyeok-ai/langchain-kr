@@ -1,0 +1,41 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef parserBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef promptBlock fill:#1e1e1e,color:#d4d4d4,stroke:#9cdcfe,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    RS1["ResponseSchema(<br/>    name='answer',<br/>    description='사용자의 질문에 대한 답변'<br/>)"]:::schemaBlock
+
+    RS2["ResponseSchema(<br/>    name='source',<br/>    description='답변에 사용된 출처 또는 웹사이트 주소'<br/>)"]:::schemaBlock
+
+    Parser["legacy_parser =<br/>StructuredOutputParser.from_response_schemas([<br/>    ResponseSchema(... answer ...),<br/>    ResponseSchema(... source ...),<br/>])"]:::parserBlock
+
+    Format["legacy_parser.get_format_instructions()<br/><br/>→ answer / source 키를 갖는<br/>출력 형식 지침 문자열"]:::parserBlock
+
+    PromptBase["ChatPromptTemplate.from_template(<br/>    'answer the users question as best as possible.\n'<br/>    '{format_instructions}\n'<br/>    '{question}'<br/>)"]:::promptBlock
+
+    Prompt["legacy_prompt = (...).partial(<br/>    format_instructions=<br/>        legacy_parser.get_format_instructions()<br/>)<br/><br/>{format_instructions}는 미리 채워지고<br/>실행 시 {question}만 남음"]:::promptBlock
+
+    LLM["llm = init_chat_model(<br/>    'openai:gpt-4.1-mini',<br/>    temperature=0<br/>)"]:::codeBlock
+
+    Chain["legacy_prompt | llm | legacy_parser<br/><br/>※ 별도 변수에 저장하지 않고<br/>invoke() 표현식에서 바로 조립"]:::chainBlock
+
+    Exec["(legacy_prompt | llm | legacy_parser).invoke({<br/>    'question': '대한민국의 수도는 어디인가요?'<br/>})"]:::execBlock
+
+    LLMText["LLM 출력<br/>└─ 형식 지침을 따른 문자열"]:::resultBlock
+    Result["legacy_parser가 문자열 파싱<br/>↓<br/>dict 결과<br/>├─ answer<br/>└─ source"]:::resultBlock
+
+    RS1 == "1. 응답 스키마 정의" ==> Parser
+    RS2 == "1. 응답 스키마 정의" ==> Parser
+    Parser == "2. parser 객체 생성" ==> Format
+    PromptBase == "3. 원본 PromptTemplate" ==> Prompt
+    Format -. "4. partial()로 형식 지침 미리 주입" .-> Prompt
+    Prompt == "5. Prompt 객체 결합" ==> Chain
+    LLM == "6. LLM 객체 결합" ==> Chain
+    Parser == "7. Parser 객체 결합" ==> Chain
+    Chain -. "8. 즉시 invoke()" .-> Exec
+    Exec == "9. 내부에서 Prompt → LLM" ==> LLMText
+    LLMText == "10. 문자열 → StructuredOutputParser" ==> Result

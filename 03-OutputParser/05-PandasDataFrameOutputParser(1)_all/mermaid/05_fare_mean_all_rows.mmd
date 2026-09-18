@@ -1,0 +1,33 @@
+graph TD
+    classDef titleBlock fill:transparent,color:#111,stroke:transparent,font-size:24px,font-weight:bold;
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef funcBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Title["<span style='white-space:nowrap'>05. 전체 Fare 평균: 자연어 질문 → 안전한 구조화 계획 → pandas 실행</span>"]:::titleBlock
+    Input["{'question': 'Calculate average `Fare` rate.'}"]:::codeBlock
+    Query["query_chain = plan_chain | RunnableLambda(lambda q: run_query(df, q))"]:::chainBlock
+    Exec["result = query_chain.invoke({<br/>'question': 'Calculate average `Fare` rate.'<br/>})"]:::execBlock
+
+    PlanResult["DataFrameQuery 계획 객체<br/>(질문의 의도상)<br/>operation = 'mean'<br/>column = 'Fare'<br/>row_start = None<br/>row_end = None"]:::resultBlock
+
+    Slice["run_query(df, q)<br/>start = 0<br/>stop = None<br/>subset = df.iloc[0:None]<br/>series = subset['Fare']"]:::funcBlock
+    TypeCheck["pd.api.types.is_numeric_dtype(series)<br/>→ 숫자형이면 집계 허용"]:::funcBlock
+    Calc["return getattr(series, q.operation)()<br/>→ getattr(series, 'mean')()<br/>→ series.mean()"]:::funcBlock
+    Result["result<br/>→ 전체 Fare 평균"]:::resultBlock
+
+    Verify["직접 계산 검증:<br/>df['Fare'].mean()"]:::codeBlock
+    Compare["print('LLM 계획 기반 결과:', result)<br/>print('직접 계산 검증   :', df['Fare'].mean())"]:::resultBlock
+
+    Title ~~~ Input
+    Input == "1. query_chain.invoke()에 질문 주입" ==> Exec
+    Query -. "조립된 query_chain" .-> Exec
+    Exec == "2. 내부 plan_chain이 DataFrameQuery 생성" ==> PlanResult
+    PlanResult == "3. q로 전달" ==> Slice
+    Slice == "4. 전체 Fare Series 선택" ==> TypeCheck
+    TypeCheck == "5. 숫자형 확인" ==> Calc
+    Calc == "6. mean() 결과 반환" ==> Result
+    Result == "7. 출력" ==> Compare
+    Verify == "독립적인 pandas 계산" ==> Compare

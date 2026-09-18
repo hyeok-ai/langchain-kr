@@ -1,0 +1,32 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef transformBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    BaseChain["chain = prompt |<br/>llm.with_structured_output(ColorAnswer)<br/><br/>입력: {'object': ...}<br/>출력: ColorAnswer"]:::chainBlock
+
+    Lambda["lambda r: r.color<br/><br/>ColorAnswer → Colors 멤버만 추출"]:::transformBlock
+
+    ColorOnly["color_only = chain | (lambda r: r.color)"]:::chainBlock
+
+    Inputs["[<br/>    {'object': '하늘'},<br/>    {'object': '잔디'},<br/>    {'object': '딸기'}<br/>]"]:::codeBlock
+
+    Exec["color_only.batch([<br/>    {'object': '하늘'},<br/>    {'object': '잔디'},<br/>    {'object': '딸기'}<br/>])"]:::execBlock
+
+    R1["하늘<br/>→ ColorAnswer(color=Colors.BLUE, ...)<br/>→ Colors.BLUE"]:::resultBlock
+    R2["잔디<br/>→ ColorAnswer(color=Colors.GREEN, ...)<br/>→ Colors.GREEN"]:::resultBlock
+    R3["딸기<br/>→ ColorAnswer(color=Colors.RED, ...)<br/>→ Colors.RED"]:::resultBlock
+    Final["batch 결과<br/>[Colors.BLUE, Colors.GREEN, Colors.RED]"]:::resultBlock
+
+    BaseChain == "1. 기존 chain 객체 결합" ==> ColorOnly
+    Lambda == "2. 후처리 Runnable 결합" ==> ColorOnly
+    ColorOnly -. "조립된 color_only 체인" .-> Exec
+    Inputs == "3. batch()에 입력 목록 전달" ==> Exec
+    Exec == "4. 각 입력을 체인으로 실행" ==> R1
+    Exec == "4. 각 입력을 체인으로 실행" ==> R2
+    Exec == "4. 각 입력을 체인으로 실행" ==> R3
+    R1 ==> Final
+    R2 ==> Final
+    R3 ==> Final

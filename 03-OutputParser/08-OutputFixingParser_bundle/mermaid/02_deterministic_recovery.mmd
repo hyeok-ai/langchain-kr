@@ -1,0 +1,20 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Bad["misformatted =<br/>'{'name': 'Tom Hanks',<br/>  'film_names': ['Forrest Gump']}'"]:::codeBlock
+
+    Literal["ast.literal_eval(misformatted)<br/><br/>문자열의 Python 리터럴만 안전하게 해석"]:::execBlock
+
+    Dict["Python dict<br/>{<br/>  'name': 'Tom Hanks',<br/>  'film_names': ['Forrest Gump']<br/>}"]:::resultBlock
+
+    Schema["Actor.model_validate(...)<br/><br/>Actor 스키마:<br/>├─ name: str<br/>└─ film_names: list[str]"]:::schemaBlock
+
+    Actor["Actor 객체<br/>├─ name = 'Tom Hanks'<br/>└─ film_names = ['Forrest Gump']"]:::resultBlock
+
+    Bad == "1. 잘못된 JSON 형태 문자열" ==> Literal
+    Literal == "2. LLM 호출 없이 결정적 복구" ==> Dict
+    Dict == "3. Pydantic 검증" ==> Schema
+    Schema == "4. 검증 성공" ==> Actor

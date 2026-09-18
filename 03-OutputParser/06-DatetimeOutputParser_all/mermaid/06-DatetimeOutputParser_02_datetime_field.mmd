@@ -1,0 +1,28 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef structBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Schema["class EventTime(BaseModel):<br/>    '''역사적 사건의 발생 시각'''<br/>    event: str = Field(description='사건 이름')<br/>    occurred_at: datetime = Field(<br/>        description='사건 발생 시각 (UTC, ISO 8601)'<br/>    )"]:::schemaBlock
+    LLM["llm<br/>└─ 앞에서 생성한 init_chat_model(<br/>    'openai:gpt-4.1-mini', temperature=0<br/>)"]:::codeBlock
+    Prompt["prompt<br/>└─ 앞에서 생성한 ChatPromptTemplate<br/>   ├─ system: 'Answer the users question.'<br/>   └─ human: '{question}'"]:::codeBlock
+    Struct["llm.with_structured_output(<br/>    EventTime<br/>)"]:::structBlock
+    Chain["event_chain = prompt<br/>    | llm.with_structured_output(EventTime)"]:::chainBlock
+    Input["{'question': '아폴로 11호가 달에 착륙한 시각'}"]:::codeBlock
+    Exec["result = event_chain.invoke({<br/>    'question': '아폴로 11호가 달에 착륙한 시각'<br/>})"]:::execBlock
+    Result["result : EventTime<br/>├─ result.event : str<br/>└─ result.occurred_at : datetime<br/>   └─ .tzinfo"]:::resultBlock
+    Format["result.occurred_at.strftime(<br/>    '%Y-%m-%d %H:%M %Z'<br/>)"]:::resultBlock
+
+    LLM == "1. 원본 LLM 재사용" ==> Struct
+    Schema == "2. datetime 타입 스키마 설정" ==> Struct
+    Prompt == "3. Prompt 객체 재사용" ==> Chain
+    Struct == "4. 구조화 LLM 객체 결합" ==> Chain
+    Chain -. "조립된 event_chain" .-> Exec
+    Input == "5. invoke() 시 {question} 주입" ==> Exec
+    Exec == "6. EventTime 객체 반환" ==> Result
+    Result == "7. datetime 객체 후처리" ==> Format
+
+    Schema ~~~ LLM

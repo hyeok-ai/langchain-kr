@@ -1,0 +1,24 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef structBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Schema["topic_schema = {<br/>    'title': 'Topic',<br/>    'description': '주제에 대한 설명과 키워드',<br/>    'type': 'object',<br/>    'properties': {<br/>        'description': {<br/>            'type': 'string',<br/>            'description': '주제에 대한 간결한 설명'<br/>        },<br/>        'hashtags': {<br/>            'type': 'array',<br/>            'items': {'type': 'string'},<br/>            'description': '해시태그 형식의 키워드(2개 이상)'<br/>        }<br/>    },<br/>    'required': ['description', 'hashtags']<br/>}"]:::schemaBlock
+    LLM["llm = init_chat_model(<br/>    'openai:gpt-4.1-mini',<br/>    temperature=0<br/>)"]:::codeBlock
+    Structured["llm.with_structured_output(topic_schema)"]:::structBlock
+    Prompt["prompt = ChatPromptTemplate.from_messages([<br/>    ('system', '당신은 친절한 AI 어시스턴트 입니다. 질문에 간결하게 답변하세요.'),<br/>    ('human', '#Question: {question}')<br/>])"]:::codeBlock
+    Question["question =<br/>'지구 온난화의 심각성 대해 알려주세요.'"]:::codeBlock
+    Chain["dict_chain = prompt | llm.with_structured_output(topic_schema)"]:::chainBlock
+    Exec["response = dict_chain.invoke({<br/>    'question': question<br/>})"]:::execBlock
+    Result["response : dict<br/>├─ response['description']<br/>└─ response['hashtags']"]:::resultBlock
+
+    LLM == "1. 원본 LLM" ==> Structured
+    Schema == "2. JSON Schema(dict)를 LLM에 설정" ==> Structured
+    Prompt == "3. Prompt 객체 결합" ==> Chain
+    Structured == "4. 구조화 출력 LLM 객체 결합" ==> Chain
+    Chain -. "조립된 dict_chain" .-> Exec
+    Question == "5. invoke() 시 {question} 주입" ==> Exec
+    Exec == "6. dict 반환" ==> Result

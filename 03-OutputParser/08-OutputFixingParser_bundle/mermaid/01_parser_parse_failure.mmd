@@ -1,0 +1,21 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef parserBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef errorBlock fill:#1e1e1e,color:#f48771,stroke:#f48771,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Schema["class Actor(BaseModel):<br/>    name: str = Field(description='name of an actor')<br/>    film_names: list[str] = Field(<br/>        description='list of names of films they starred in'<br/>    )"]:::schemaBlock
+
+    Parser["parser = PydanticOutputParser(<br/>    pydantic_object=Actor<br/>)"]:::parserBlock
+
+    Bad["misformatted =<br/>'{'name': 'Tom Hanks',<br/>  'film_names': ['Forrest Gump']}'<br/><br/>※ 작은따옴표 기반 Python dict 표기<br/>※ 유효한 JSON 아님"]:::codeBlock
+
+    Exec["try:<br/>    parser.parse(misformatted)<br/>except OutputParserException as e:<br/>    print('파싱 실패:', e)"]:::execBlock
+
+    Error["OutputParserException<br/>└─ JSON/Pydantic 파싱 실패<br/>└─ 예외 메시지 출력"]:::errorBlock
+
+    Schema == "1. Actor 스키마 설정" ==> Parser
+    Parser == "2. parser.parse() 호출" ==> Exec
+    Bad == "3. 잘못된 문자열 입력" ==> Exec
+    Exec == "4. 파싱 실패" ==> Error

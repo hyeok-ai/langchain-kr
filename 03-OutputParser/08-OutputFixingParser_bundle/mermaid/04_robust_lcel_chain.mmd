@@ -1,0 +1,39 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef parserBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Parser["parser = PydanticOutputParser(<br/>    pydantic_object=Actor<br/>)"]:::parserBlock
+
+    Format["parser.get_format_instructions()<br/>└─ Actor 출력 형식 지침 문자열"]:::parserBlock
+
+    PromptBase["ChatPromptTemplate.from_template(<br/>    '{query}\\n\\n{format_instructions}'<br/>)"]:::codeBlock
+
+    Prompt["gen_prompt = (...).partial(<br/>    format_instructions=parser.get_format_instructions()<br/>)<br/><br/>실행 시 남는 변수:<br/>└─ {query}"]:::codeBlock
+
+    LLM["llm = init_chat_model(<br/>    'openai:gpt-4.1-mini',<br/>    temperature=0<br/>)"]:::codeBlock
+
+    Str["StrOutputParser()<br/>└─ AIMessage → str"]:::parserBlock
+
+    Lambda["RunnableLambda(parse_or_fix)<br/>└─ 문자열 파싱 시도<br/>└─ 실패하면 fixer.invoke(...)로 복구"]:::codeBlock
+
+    Chain["robust_chain =<br/>gen_prompt<br/>| llm<br/>| StrOutputParser()<br/>| RunnableLambda(parse_or_fix)"]:::chainBlock
+
+    Query["actor_query =<br/>'Generate the filmography for a random actor.'"]:::codeBlock
+
+    Exec["robust_chain.invoke({<br/>    'query': actor_query<br/>})"]:::execBlock
+
+    Result["최종 결과<br/>Actor 객체"]:::resultBlock
+
+    Parser == "1. 형식 지침 생성" ==> Format
+    PromptBase == "2. 원본 PromptTemplate" ==> Prompt
+    Format -. "3. partial()로 미리 주입" .-> Prompt
+    Prompt == "4. Prompt 결합" ==> Chain
+    LLM == "5. LLM 결합" ==> Chain
+    Str == "6. 문자열 Parser 결합" ==> Chain
+    Lambda == "7. 복구 함수 결합" ==> Chain
+    Chain -. "조립된 LCEL 체인" .-> Exec
+    Query == "8. invoke() 시 {query} 주입" ==> Exec
+    Exec == "9. 생성 → 문자열화 → 파싱/복구" ==> Result

@@ -1,0 +1,21 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef structBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    LLM["llm = init_chat_model(<br/>    'openai:gpt-4.1-mini',<br/>    temperature=0<br/>)"]:::codeBlock
+    JsonLLM["json_llm = llm.with_structured_output(<br/>    method='json_mode'<br/>)"]:::structBlock
+    Prompt["prompt = ChatPromptTemplate.from_messages([<br/>    ('system', '당신은 친절한 AI 어시스턴트 입니다. 질문에 간결하게 답변하세요.'),<br/>    ('human', '#Question: {question}')<br/>])"]:::codeBlock
+    Question2["question2 = (<br/>    '지구 온난화에 대해 알려주세요. JSON 으로 답하세요. '<br/>    '온난화에 대한 설명은 `description`에, '<br/>    '관련 키워드는 `hashtags`(배열)에 담아주세요.'<br/>)"]:::codeBlock
+    Chain["prompt | json_llm"]:::chainBlock
+    Exec["response = (prompt | json_llm).invoke({<br/>    'question': question2<br/>})"]:::execBlock
+    Result["response : dict<br/>└─ JSON 모드 결과"]:::resultBlock
+
+    LLM == "1. method='json_mode' 설정" ==> JsonLLM
+    Prompt == "2. Prompt 객체 결합" ==> Chain
+    JsonLLM == "3. JSON mode LLM 객체 결합" ==> Chain
+    Chain -. "임시 조립된 Runnable" .-> Exec
+    Question2 == "4. 원하는 키 구조를 질문에 명시하여 주입" ==> Exec
+    Exec == "5. JSON(dict) 반환" ==> Result

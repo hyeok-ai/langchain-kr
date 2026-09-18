@@ -1,0 +1,44 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef structBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef decisionBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:center,font-family:monospace;
+
+    Schema["class Actor(BaseModel):<br/>    name: str<br/>    film_names: list[str]"]:::schemaBlock
+
+    LLM["llm = init_chat_model(<br/>    'openai:gpt-4.1-mini',<br/>    temperature=0<br/>)"]:::codeBlock
+
+    Structured["llm.with_structured_output(Actor)"]:::structBlock
+
+    Prompt["fix_prompt = ChatPromptTemplate.from_messages([<br/>    ('system',<br/>     '아래 출력은 스키마에 맞지 않아 파싱에 실패했습니다. '<br/>     '원래 내용을 바꾸지 말고 스키마에 맞게 고쳐 주세요.'),<br/>    ('human', '## 원본 출력\\n{completion}\\n\\n## 오류\\n{error}')<br/>])"]:::codeBlock
+
+    Fixer["fixer = fix_prompt<br/>        | llm.with_structured_output(Actor)"]:::chainBlock
+
+    Parser["parser = PydanticOutputParser(<br/>    pydantic_object=Actor<br/>)"]:::codeBlock
+
+    Func["def parse_or_fix(text: str) -> Actor:<br/>    try:<br/>        return parser.parse(text)<br/>    except OutputParserException as e:<br/>        return fixer.invoke({<br/>            'completion': text,<br/>            'error': str(e)<br/>        })"]:::execBlock
+
+    Call["actor = parse_or_fix(misformatted)"]:::execBlock
+
+    Decision{"parser.parse(text)<br/>성공?"}:::decisionBlock
+
+    Direct["일반 파싱 결과<br/>Actor 객체"]:::resultBlock
+
+    FixInvoke["fixer.invoke({<br/>    'completion': text,<br/>    'error': str(e)<br/>})<br/><br/>원본 + 오류 메시지를<br/>복구용 구조화 출력 모델에 전달"]:::execBlock
+
+    Fixed["복구 완료<br/>검증된 Actor 객체"]:::resultBlock
+
+    LLM == "1. 원본 LLM" ==> Structured
+    Schema == "2. Actor 스키마 설정" ==> Structured
+    Prompt == "3. Prompt 객체 결합" ==> Fixer
+    Structured == "4. 구조화 출력 LLM 결합" ==> Fixer
+    Parser -. "parse_or_fix 내부에서 사용" .-> Func
+    Fixer -. "파싱 실패 시 사용" .-> Func
+    Call == "5. 함수 실행" ==> Func
+    Func ==> Decision
+    Decision == "Yes" ==> Direct
+    Decision == "No: OutputParserException" ==> FixInvoke
+    FixInvoke == "6. LLM 기반 복구" ==> Fixed
