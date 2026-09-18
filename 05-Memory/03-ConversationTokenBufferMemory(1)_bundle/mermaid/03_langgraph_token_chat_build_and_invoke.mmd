@@ -1,0 +1,29 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef funcBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:15px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Model["MODEL_ID = os.getenv('CHAT_MODEL', 'openai:gpt-5.6-luna')<br/>model = init_chat_model(MODEL_ID)"]:::codeBlock
+    Saver["from langgraph.checkpoint.memory import InMemorySaver<br/>from langgraph.graph import END, START, MessagesState, StateGraph"]:::codeBlock
+    Consts["MAX_TOKENS = 80<br/>SYSTEM_PROMPT = '당신은 공작 기계 설치를 돕는 기술 지원 상담원입니다.'"]:::codeBlock
+    TrimFunc["def trim_for_model(messages):<br/>    return trim_messages(<br/>        [SystemMessage(content=SYSTEM_PROMPT), *messages],<br/>        max_tokens=MAX_TOKENS,<br/>        token_counter='approximate',<br/>        strategy='last',<br/>        start_on='human',<br/>        include_system=True,<br/>        allow_partial=False,<br/>    )"]:::funcBlock
+    CallModel["def call_model(state: MessagesState):<br/>    response = model.invoke(trim_for_model(state['messages']))<br/>    return {'messages': [response]}"]:::funcBlock
+    Build["builder = StateGraph(MessagesState)<br/>builder.add_node('model', call_model)<br/>builder.add_edge(START, 'model')<br/>builder.add_edge('model', END)"]:::chainBlock
+    Compile["token_chat = builder.compile(checkpointer=InMemorySaver())"]:::chainBlock
+    InputMessages["sample_messages[1:]<br/>+<br/>HumanMessage(content='마지막으로 해야 할 점검을 한 문장으로 알려주세요.')<br/><br/>※ sample_messages[1:] 인 이유<br/>- sample_messages[0] 은 SystemMessage<br/>- 시스템 메시지는 trim_for_model() 에서 별도로 다시 추가"]:::codeBlock
+    Invoke["config = {'configurable': {'thread_id': 'token-demo'}}<br/><br/>result = token_chat.invoke(<br/>    {<br/>        'messages': [<br/>            *sample_messages[1:],<br/>            HumanMessage(content='마지막으로 해야 할 점검을 한 문장으로 알려주세요.'),<br/>        ]<br/>    },<br/>    config=config,<br/>)"]:::execBlock
+    InnerFlow["invoke 내부 흐름<br/>1) state['messages'] 수신<br/>2) call_model(state) 실행<br/>3) trim_for_model(state['messages']) 로 최근 문맥만 남김<br/>4) model.invoke(trimmed_messages) 호출<br/>5) {'messages': [response]} 반환<br/>6) checkpointer 가 thread_id='token-demo' 상태 저장"]:::resultBlock
+    Output["print(result['messages'][-1].content)"]:::resultBlock
+
+    Model == "1. model 객체 준비" ==> CallModel
+    Consts == "2. trim 함수 파라미터 제공" ==> TrimFunc
+    TrimFunc == "3. call_model 내부에서 사용" ==> CallModel
+    Saver == "4. LangGraph 빌더 준비" ==> Build
+    CallModel == "5. 노드로 등록" ==> Build
+    Build == "6. InMemorySaver 체크포인터로 컴파일" ==> Compile
+    InputMessages == "7. invoke 입력 메시지 구성" ==> Invoke
+    Compile -. "8. token_chat.invoke(...)" .-> Invoke
+    Invoke == "9. 내부 실행 순서" ==> InnerFlow
+    Invoke == "10. 최종 답변 출력" ==> Output

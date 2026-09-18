@@ -1,0 +1,42 @@
+---
+title: 2. Triple 저장 + 엔티티 기준 조회
+---
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef storeBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef funcBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Knowledge["knowledge.triples<br/>└─ 앞 단계에서 추출된 list[Triple]"]:::resultBlock
+
+    StoreInit["triple_store = InMemoryStore()<br/>namespace = ('knowledge', 'company-demo')"]:::storeBlock
+
+    KeyFunc["def triple_key(triple: Triple) -&gt; str:<br/>    canonical = f'{triple.subject}|{triple.predicate}|{triple.object}'<br/>    return sha256(<br/>        canonical.encode('utf-8')<br/>    ).hexdigest()[:16]"]:::funcBlock
+
+    SaveLoop["for triple in knowledge.triples:<br/>    triple_store.put(<br/>        namespace,<br/>        triple_key(triple),<br/>        triple.model_dump()<br/>    )"]:::execBlock
+
+    StoreState["InMemoryStore<br/><br/>namespace:<br/>('knowledge', 'company-demo')<br/><br/>key = 내용 기반 SHA-256 앞 16자리<br/>value = triple.model_dump()"]:::storeBlock
+
+    FactsFunc["def facts_about(entity: str) -&gt; list[dict]:<br/>    items = triple_store.search(namespace, limit=100)<br/>    return [<br/>        item.value<br/>        for item in items<br/>        if entity in item.value['subject']<br/>        or entity in item.value['object']<br/>    ]"]:::funcBlock
+
+    Query["shirley_facts = facts_about('김셜리')"]:::execBlock
+
+    Search["triple_store.search(<br/>    namespace,<br/>    limit=100<br/>)"]:::storeBlock
+
+    Filter["필터 조건<br/><br/>'김셜리'가<br/>subject 또는 object에 포함되는가?"]:::codeBlock
+
+    Result["shirley_facts : list[dict]<br/>└─ 김셜리와 직접 연결된 edge 값들"]:::resultBlock
+
+    Knowledge == "1. 각 Triple 순회" ==> SaveLoop
+    KeyFunc == "2. 내용 기반 key 생성" ==> SaveLoop
+    StoreInit == "3. 저장 대상 Store / namespace" ==> SaveLoop
+    SaveLoop == "4. put()" ==> StoreState
+
+    StoreState -. "같은 Store 조회" .-> Search
+    Query == "5. entity='김셜리'" ==> FactsFunc
+    FactsFunc == "6. search() 호출" ==> Search
+    Search == "7. 최대 100개 item" ==> Filter
+    Filter == "8. subject/object 기준 선택" ==> Result
+
+    StoreInit ~~~ KeyFunc
