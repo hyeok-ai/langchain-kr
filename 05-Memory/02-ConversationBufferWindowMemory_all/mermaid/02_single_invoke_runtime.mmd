@@ -1,0 +1,42 @@
+---
+title: "2. window_chat.invoke() 1회 내부 실행 흐름"
+---
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef logicBlock fill:#1e1e1e,color:#9cdcfe,stroke:#9cdcfe,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef graphBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:left,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef memoryBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Config["config = {<br/>  'configurable': {<br/>    'thread_id': 'window-demo'<br/>  }<br/>}"]:::codeBlock
+
+    NewMessage["{'messages': [<br/>  {'role': 'user', 'content': question}<br/>]}"]:::codeBlock
+
+    Invoke["result = window_chat.invoke(<br/>    {'messages': [{'role': 'user', 'content': question}]},<br/>    config=config,<br/>)"]:::execBlock
+
+    Restore["InMemorySaver<br/>같은 thread_id의 이전 checkpoint 복원<br/>+ 이번 human 메시지 병합"]:::memoryBlock
+
+    FullState["state['messages']<br/>└─ 이전 human/ai 전체 기록<br/>└─ + 현재 human 메시지"]:::memoryBlock
+
+    CallModel["call_model(state)"]:::graphBlock
+
+    Select["context_for_model(state['messages'])<br/><br/>history = messages[:-1]<br/>current = messages[-1]<br/>recent_history = history[-2 * K:]<br/><br/>→ System + 최근 2 turn + 현재 human"]:::logicBlock
+
+    ModelInvoke["response = model.invoke(<br/>    선택된 context<br/>)"]:::execBlock
+
+    NodeReturn["return {'messages': [response]}"]:::logicBlock
+
+    Save["MessagesState reducer가 AI 응답 추가<br/>↓<br/>InMemorySaver가 갱신된 전체 상태 저장"]:::memoryBlock
+
+    Result["result<br/>└─ 전체 thread state<br/>└─ result['messages'][-1] = 방금 AI 응답"]:::memoryBlock
+
+    Config == "1. thread_id 지정" ==> Invoke
+    NewMessage == "2. 새 메시지만 전달" ==> Invoke
+    Invoke == "3. checkpoint 조회" ==> Restore
+    Restore == "4. 전체 상태 복원" ==> FullState
+    FullState == "5. model node 진입" ==> CallModel
+    CallModel == "6. 모델용 context 선택" ==> Select
+    Select == "7. 실제 LLM 호출" ==> ModelInvoke
+    ModelInvoke == "8. AIMessage 반환" ==> NodeReturn
+    NodeReturn == "9. state에 응답 추가" ==> Save
+    Save == "10. invoke 결과 반환" ==> Result

@@ -1,0 +1,51 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef memoryBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef stateBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef graphBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Config["config = {<br/>  'configurable': {<br/>    'thread_id': 'bank-account-demo'<br/>  }<br/>}"]:::memoryBlock
+
+    Ask["def ask(text: str) -> str:<br/>    result = chat.invoke(<br/>        {'messages': [{'role': 'user', 'content': text}]},<br/>        config=config,<br/>    )<br/>    return result['messages'][-1].content"]:::graphBlock
+
+    Call1["print(ask(<br/>  '안녕하세요. 비대면으로 은행 계좌를 개설하고 싶습니다.<br/>   어떻게 시작해야 하나요?'<br/>))"]:::codeBlock
+
+    Empty["InMemorySaver<br/>thread_id='bank-account-demo'<br/>└─ 이전 checkpoint 없음"]:::memoryBlock
+
+    Invoke1["1차 chat.invoke()<br/>입력: 새 HumanMessage #1<br/>config: bank-account-demo"]:::execBlock
+
+    State1["1차 실행 상태<br/>messages = [Human #1]"]:::stateBlock
+    Graph1["START → model(call_model) → END<br/>model.invoke() → AIMessage #1"]:::graphBlock
+    Saved1["checkpoint #1 저장<br/>messages = [Human #1, AI #1]"]:::memoryBlock
+    A1["ask() 반환 → AI #1 내용"]:::resultBlock
+
+    Call2["print(ask(<br/>  '방금 안내한 절차를 불렛포인트로 다시 정리해 주세요.'<br/>))"]:::codeBlock
+
+    Restore["같은 thread_id<br/>→ checkpoint #1 자동 복원"]:::memoryBlock
+
+    Invoke2["2차 chat.invoke()<br/>입력: 새 HumanMessage #2<br/>config: bank-account-demo"]:::execBlock
+
+    State2["2차 실행 직전 상태<br/>messages = [Human #1, AI #1, Human #2]"]:::stateBlock
+    Graph2["START → model(call_model) → END<br/>model.invoke()는 이전 대화까지 함께 봄"]:::graphBlock
+    Saved2["checkpoint #2 저장<br/>messages = [Human #1, AI #1, Human #2, AI #2]"]:::memoryBlock
+    A2["ask() 반환 → AI #2 내용"]:::resultBlock
+
+    Config == "1. ask()가 사용할 thread_id" ==> Ask
+    Call1 == "2. 첫 번째 ask() 호출" ==> Invoke1
+    Ask -. "내부에서 chat.invoke()" .-> Invoke1
+    Empty ==> Invoke1
+    Invoke1 ==> State1
+    State1 ==> Graph1
+    Graph1 == "3. checkpoint #1 저장" ==> Saved1
+    Graph1 ==> A1
+
+    Saved1 == "4. 다음 호출에서 같은 thread_id로 복원" ==> Restore
+    Call2 == "5. 두 번째 ask() 호출" ==> Invoke2
+    Ask -. "같은 wrapper 함수" .-> Invoke2
+    Restore ==> Invoke2
+    Invoke2 ==> State2
+    State2 ==> Graph2
+    Graph2 == "6. 누적 상태를 checkpoint #2로 갱신" ==> Saved2
+    Graph2 ==> A2

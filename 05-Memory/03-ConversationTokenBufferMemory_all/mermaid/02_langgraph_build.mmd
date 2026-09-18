@@ -1,0 +1,33 @@
+graph TD
+
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef funcBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef graphBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:left,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef stateBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Model["MODEL_ID = os.getenv(<br/>    'CHAT_MODEL',<br/>    'openai:gpt-5.6-luna'<br/>)<br/><br/>model = init_chat_model(MODEL_ID)"]:::codeBlock
+
+    TrimFn["def trim_for_model(messages):<br/>    return trim_messages(<br/>        [SystemMessage(content=SYSTEM_PROMPT), *messages],<br/>        max_tokens=MAX_TOKENS,<br/>        token_counter='approximate',<br/>        strategy='last',<br/>        start_on='human',<br/>        include_system=True,<br/>        allow_partial=False,<br/>    )"]:::funcBlock
+
+    CallFn["def call_model(state: MessagesState):<br/>    response = model.invoke(<br/>        trim_for_model(state['messages'])<br/>    )<br/>    return {'messages': [response]}"]:::funcBlock
+
+    Builder["builder = StateGraph(MessagesState)"]:::graphBlock
+    AddNode["builder.add_node(<br/>    'model',<br/>    call_model<br/>)"]:::graphBlock
+    Edge1["builder.add_edge(START, 'model')"]:::graphBlock
+    Edge2["builder.add_edge('model', END)"]:::graphBlock
+    Saver["InMemorySaver()"]:::stateBlock
+    Compile["token_chat = builder.compile(<br/>    checkpointer=InMemorySaver()<br/>)"]:::graphBlock
+
+    Model == "1. call_model이 사용할 모델 객체" ==> CallFn
+    TrimFn == "2. 모델 호출 직전 trimming 함수" ==> CallFn
+
+    Builder == "3. MessagesState 기반 그래프 생성" ==> AddNode
+    CallFn == "4. 'model' 노드 함수로 등록" ==> AddNode
+    AddNode ==> Edge1
+    Edge1 ==> Edge2
+    Edge2 == "5. START → model → END 연결 완료" ==> Compile
+    Saver == "6. 대화 상태 checkpointer 결합" ==> Compile
+
+    CallFn -. "노드 실행 내부: trim_for_model → model.invoke" .-> Compile

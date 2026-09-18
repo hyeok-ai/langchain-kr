@@ -1,0 +1,31 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef memoryBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef stateBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef graphBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Existing["기존 thread<br/>thread_id='bank-account-demo'<br/>checkpoint:<br/>[Human #1, AI #1, Human #2, AI #2]"]:::memoryBlock
+
+    Other["other_config = {<br/>  'configurable': {<br/>    'thread_id': 'another-customer'<br/>  }<br/>}"]:::codeBlock
+
+    Exec["result = chat.invoke(<br/>  {'messages': [{<br/>    'role': 'user',<br/>    'content': '제가 방금 무엇을 물었나요?'<br/>  }]},<br/>  config=other_config,<br/>)"]:::execBlock
+
+    Bucket["InMemorySaver<br/>thread_id='another-customer'<br/>└─ 별도 checkpoint 공간<br/>└─ 기존 bank-account-demo 상태를 읽지 않음"]:::memoryBlock
+
+    State["새 thread의 실행 상태<br/>messages =<br/>[Human: '제가 방금 무엇을 물었나요?']"]:::stateBlock
+
+    Graph["START → model(call_model) → END<br/>SystemMessage + 새 thread messages만<br/>model.invoke()에 전달"]:::graphBlock
+
+    Saved["another-customer checkpoint 저장<br/>[Human, AI]"]:::memoryBlock
+
+    Result["print(result['messages'][-1].content)"]:::resultBlock
+
+    Existing -. "thread_id가 다름: 연결되지 않음" .-> Bucket
+    Other == "1. 새 thread_id 지정" ==> Exec
+    Bucket == "2. 독립된 상태 공간" ==> Exec
+    Exec ==> State
+    State ==> Graph
+    Graph == "3. 새 thread 결과 저장" ==> Saved
+    Graph ==> Result

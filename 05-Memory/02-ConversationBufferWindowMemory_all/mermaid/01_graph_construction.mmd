@@ -1,0 +1,32 @@
+---
+title: "1. 모델 · 컨텍스트 윈도우 · StateGraph 조립"
+---
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef logicBlock fill:#1e1e1e,color:#9cdcfe,stroke:#9cdcfe,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef graphBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:left,font-family:monospace,font-size:16px;
+    classDef memoryBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    ModelInit["MODEL_ID = os.getenv(<br/>    'CHAT_MODEL', 'openai:gpt-5.6-luna'<br/>)<br/>model = init_chat_model(MODEL_ID)"]:::codeBlock
+
+    Constants["K = 2<br/>SYSTEM_PROMPT =<br/>    '당신은 친절한 은행 상담 챗봇입니다.'"]:::codeBlock
+
+    ContextFn["def context_for_model(messages):<br/>    if not messages or messages[-1].type != 'human':<br/>        raise ValueError(...)<br/><br/>    history, current_user_message = messages[:-1], messages[-1]<br/>    recent_history = history[-2 * K:]<br/><br/>    return [<br/>        SystemMessage(content=SYSTEM_PROMPT),<br/>        *recent_history,<br/>        current_user_message,<br/>    ]"]:::logicBlock
+
+    CallModel["def call_model(state: MessagesState):<br/>    response = model.invoke(<br/>        context_for_model(state['messages'])<br/>    )<br/>    return {'messages': [response]}"]:::logicBlock
+
+    Builder["builder = StateGraph(MessagesState)<br/>builder.add_node('model', call_model)<br/>builder.add_edge(START, 'model')<br/>builder.add_edge('model', END)"]:::graphBlock
+
+    Saver["InMemorySaver()<br/>└─ thread_id별 전체 상태 checkpoint 저장"]:::memoryBlock
+
+    Compile["window_chat = builder.compile(<br/>    checkpointer=InMemorySaver()<br/>)"]:::graphBlock
+
+    WindowChat["window_chat<br/>└─ compiled LangGraph<br/>└─ 전체 상태 저장 + 호출 직전 context 선택"]:::memoryBlock
+
+    Constants == "1. K / system prompt 참조" ==> ContextFn
+    ModelInit == "2. model 객체 참조" ==> CallModel
+    ContextFn == "3. context 선택 함수 호출" ==> CallModel
+    CallModel == "4. graph node 함수로 등록" ==> Builder
+    Builder == "5. graph 구조 완성" ==> Compile
+    Saver == "6. checkpointer 결합" ==> Compile
+    Compile == "7. compiled graph 생성" ==> WindowChat

@@ -1,0 +1,27 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef stateBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef graphBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef memoryBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    State["MessagesState<br/>└─ messages 필드<br/>   └─ 메시지 병합 reducer가 이미 설정됨"]:::stateBlock
+
+    Func["def call_model(state: MessagesState):<br/>    response = model.invoke(<br/>        [SystemMessage(content=SYSTEM_PROMPT), *state['messages']]<br/>    )<br/>    return {'messages': [response]}"]:::codeBlock
+
+    Builder["builder = StateGraph(MessagesState)"]:::graphBlock
+    AddNode["builder.add_node('model', call_model)"]:::graphBlock
+    Edge1["builder.add_edge(START, 'model')"]:::graphBlock
+    Edge2["builder.add_edge('model', END)"]:::graphBlock
+
+    Saver["InMemorySaver()<br/>└─ thread_id별 checkpoint 저장"]:::memoryBlock
+
+    Chat["chat = builder.compile(<br/>    checkpointer=InMemorySaver()<br/>)"]:::resultBlock
+
+    State == "1. 그래프 상태 스키마" ==> Builder
+    Func == "2. model 노드 함수 등록" ==> AddNode
+    Builder --> AddNode
+    AddNode --> Edge1
+    Edge1 --> Edge2
+    Edge2 == "3. START → model → END 구성" ==> Chat
+    Saver == "4. checkpointer 결합" ==> Chat

@@ -1,0 +1,27 @@
+graph TD
+
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef funcBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef graphBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:left,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef stateBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Const["MAX_TOKENS = 80<br/>SYSTEM_PROMPT = '당신은 공작 기계 설치를 돕는 기술 지원 상담원입니다.'"]:::codeBlock
+
+    Messages["sample_messages = [<br/>    SystemMessage(content=SYSTEM_PROMPT),<br/>    HumanMessage(content='최근에 XG-200 공작 기계를 구매했습니다. 설치를 도와주세요.'),<br/>    AIMessage(content='먼저 설치 장소의 220V 전원과 접지 상태를 확인해 주세요.'),<br/>    ...<br/>    HumanMessage(content='연결을 마쳤습니다. 이제 무엇을 확인해야 하나요?'),<br/>    AIMessage(content='보호 덮개와 비상 정지 버튼을 확인한 뒤 초기 구동 테스트를 진행하세요.'),<br/>]"]:::codeBlock
+
+    Trim["trimmed = trim_messages(<br/>    sample_messages,<br/>    max_tokens=MAX_TOKENS,<br/>    token_counter='approximate',<br/>    strategy='last',<br/>    start_on='human',<br/>    include_system=True,<br/>    allow_partial=False,<br/>)"]:::execBlock
+
+    Result["trimmed<br/>└─ 시스템 메시지를 보존<br/>└─ 마지막 대화부터 토큰 예산 안에 유지<br/>└─ 시작 역할은 human"]:::resultBlock
+
+    CountOriginal["count_tokens_approximately(<br/>    sample_messages<br/>)"]:::funcBlock
+    CountTrimmed["count_tokens_approximately(<br/>    trimmed<br/>)"]:::funcBlock
+    Print["for message in trimmed:<br/>    print(f'[' + message.type + '] ' + message.content)"]:::resultBlock
+
+    Const == "1. trimming 정책 설정" ==> Trim
+    Messages == "2. 원본 메시지 목록 전달" ==> Trim
+    Trim == "3. 토큰 예산에 맞춘 메시지 목록 반환" ==> Result
+    Messages -. "원본 근사 토큰 계산" .-> CountOriginal
+    Result -. "정리 후 근사 토큰 계산" .-> CountTrimmed
+    Result == "4. 남은 메시지 순서 확인" ==> Print

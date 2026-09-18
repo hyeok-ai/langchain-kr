@@ -1,0 +1,28 @@
+---
+title: "3. 5회 호출: checkpoint는 누적, 모델 입력은 최근 2 turn"
+---
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef windowBlock fill:#1e1e1e,color:#9cdcfe,stroke:#9cdcfe,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef memoryBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Questions["questions = [<br/>  Q1: '비대면 계좌 개설을 시작하려면 무엇이 필요한가요?',<br/>  Q2: '신분증을 준비했습니다. 다음 단계는 무엇인가요?',<br/>  Q3: '본인 인증까지 마쳤습니다. 이제 무엇을 하나요?',<br/>  Q4: '이용 약관에도 동의했습니다. 마지막 단계는 무엇인가요?',<br/>  Q5: '가장 최근 안내만 짧게 다시 말해 주세요.'<br/>]"]:::codeBlock
+
+    Loop["for question in questions:<br/>    result = window_chat.invoke(<br/>        {'messages': [{'role':'user','content':question}]},<br/>        config=config,<br/>    )"]:::execBlock
+
+    T1["Turn 1 모델 입력<br/>System<br/>+ H1<br/><br/>checkpoint 후: H1, A1"]:::windowBlock
+    T2["Turn 2 모델 입력<br/>System<br/>+ H1, A1<br/>+ H2<br/><br/>checkpoint 후: H1, A1, H2, A2"]:::windowBlock
+    T3["Turn 3 모델 입력<br/>System<br/>+ H1, A1, H2, A2<br/>+ H3<br/><br/>checkpoint 후: ... H3, A3"]:::windowBlock
+    T4["Turn 4 모델 입력<br/>System<br/>+ H2, A2, H3, A3<br/>+ H4<br/><br/>H1/A1은 checkpoint에는 남지만<br/>모델 입력에서는 제외"]:::windowBlock
+    T5["Turn 5 모델 입력<br/>System<br/>+ H3, A3, H4, A4<br/>+ H5<br/><br/>H1/A1/H2/A2는 checkpoint에는 남지만<br/>모델 입력에서는 제외"]:::windowBlock
+
+    Full["최종 checkpoint<br/>H1, A1, H2, A2, H3, A3, H4, A4, H5, A5<br/><br/>총 10개 메시지<br/>오래된 turn을 삭제한 것이 아님"]:::memoryBlock
+
+    Questions == "1. 순서대로 반복" ==> Loop
+    Loop == "2. 첫 호출" ==> T1
+    T1 == "같은 thread_id" ==> T2
+    T2 == "같은 thread_id" ==> T3
+    T3 == "최근 2 turn window 이동" ==> T4
+    T4 == "최근 2 turn window 이동" ==> T5
+    T5 == "전체 상태는 계속 누적" ==> Full

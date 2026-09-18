@@ -1,0 +1,27 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef stateBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef memoryBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+
+    State["state : MessagesState<br/>└─ state['messages']<br/>   └─ 현재 thread의 누적 대화"]:::stateBlock
+
+    System["SYSTEM_PROMPT =<br/>'당신은 친절하고 정확한 은행 상담 챗봇입니다.'<br/><br/>SystemMessage(content=SYSTEM_PROMPT)"]:::codeBlock
+
+    Model["model = init_chat_model(MODEL_ID)"]:::codeBlock
+
+    Exec["response = model.invoke(<br/>    [<br/>        SystemMessage(content=SYSTEM_PROMPT),<br/>        *state['messages']<br/>    ]<br/>)"]:::execBlock
+
+    Response["response<br/>└─ 새 AIMessage"]:::resultBlock
+
+    Return["return {'messages': [response]}"]:::resultBlock
+
+    Reducer["MessagesState reducer<br/>기존 messages + [response]<br/>→ 다음 그래프 상태"]:::memoryBlock
+
+    State == "1. 누적 messages 전달" ==> Exec
+    System == "2. SystemMessage를 맨 앞에 추가" ==> Exec
+    Model == "3. LLM 객체 실행" ==> Exec
+    Exec == "4. model.invoke() 결과" ==> Response
+    Response ==> Return
+    Return == "5. 노드가 새 메시지만 반환" ==> Reducer

@@ -1,0 +1,38 @@
+graph TD
+
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef funcBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef graphBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:left,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef stateBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Config["config = {<br/>    'configurable': {<br/>        'thread_id': 'token-demo'<br/>    }<br/>}"]:::stateBlock
+
+    Input["{<br/>  'messages': [<br/>    *sample_messages[1:],<br/>    HumanMessage(<br/>      content='마지막으로 해야 할 점검을 한 문장으로 알려주세요.'<br/>    )<br/>  ]<br/>}"]:::codeBlock
+
+    TokenChat["token_chat<br/>└─ compiled StateGraph<br/>└─ checkpointer = InMemorySaver()"]:::graphBlock
+
+    Invoke["result = token_chat.invoke(<br/>    {'messages': [...]},<br/>    config=config,<br/>)"]:::execBlock
+
+    State["MessagesState<br/>state['messages']<br/>└─ checkpoint에 보존된 전체 대화 + 새 입력"]:::stateBlock
+
+    Trim["trim_for_model(state['messages'])<br/><br/>내부에서:<br/>[SystemMessage(SYSTEM_PROMPT), *messages]<br/>→ trim_messages(... max_tokens=80 ...)"]:::funcBlock
+
+    ModelInvoke["response = model.invoke(<br/>    trim_for_model(state['messages'])<br/>)"]:::execBlock
+
+    Return["return {<br/>    'messages': [response]<br/>}"]:::resultBlock
+
+    Checkpoint["InMemorySaver<br/>└─ thread_id='token-demo' 상태 갱신<br/>└─ 원본 전체 메시지 이력 보존"]:::stateBlock
+
+    Result["result['messages'][-1].content<br/>└─ 최종 AI 응답 출력"]:::resultBlock
+
+    TokenChat -. "컴파일된 그래프" .-> Invoke
+    Input == "1. 첫 checkpoint 입력 메시지" ==> Invoke
+    Config == "2. thread_id로 대화 스레드 선택" ==> Invoke
+    Invoke == "3. START → model 노드 실행" ==> State
+    State == "4. call_model(state)" ==> Trim
+    Trim == "5. 모델에 실제로 보낼 컨텍스트만 자름" ==> ModelInvoke
+    ModelInvoke == "6. AIMessage 응답" ==> Return
+    Return == "7. MessagesState에 응답 추가" ==> Checkpoint
+    Checkpoint == "8. invoke 결과 반환" ==> Result
