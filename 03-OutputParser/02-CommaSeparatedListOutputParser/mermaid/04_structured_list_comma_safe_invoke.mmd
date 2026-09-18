@@ -1,0 +1,27 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef promptBlock fill:#1e1e1e,color:#d4d4d4,stroke:#9cdcfe,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef parserBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef structBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef lambdaBlock fill:#1e1e1e,color:#d7ba7d,stroke:#d7ba7d,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Schema["ItemList<br/>└─ items: list[str]"]:::schemaBlock
+    Struct["llm.with_structured_output(ItemList)<br/>→ JSON 배열 기반 구조화 출력"]:::structBlock
+    Prompt["list_prompt<br/>└─ &quot;{subject} {n}개를 나열하세요.&quot;"]:::promptBlock
+    Lambda["lambda r: r.items"]:::lambdaBlock
+    Chain["list_chain = list_prompt<br/>    | llm.with_structured_output(ItemList)<br/>    | (lambda r: r.items)"]:::chainBlock
+    Input["subject =<br/>&quot;'도시, 관광명소' 형식으로 표기한 대한민국 관광명소&quot;<br/>n = 3"]:::codeBlock
+    Exec["list_chain.invoke({<br/>    &quot;subject&quot;: &quot;'도시, 관광명소' 형식으로 표기한 대한민국 관광명소&quot;,<br/>    &quot;n&quot;: 3<br/>})"]:::execBlock
+    Result["list[str]<br/>각 원소 내부의 쉼표는 그대로 유지<br/><br/>예:<br/>['서울, 경복궁', ...]"]:::resultBlock
+
+    Schema == "1. 스키마 설정" ==> Struct
+    Prompt == "2. Prompt 결합" ==> Chain
+    Struct == "3. 구조화 LLM 결합" ==> Chain
+    Lambda == "4. items 추출 단계 결합" ==> Chain
+    Chain -. "조립된 list_chain" .-> Exec
+    Input == "5. invoke() 입력 주입" ==> Exec
+    Exec == "6. JSON 배열 → list[str]" ==> Result

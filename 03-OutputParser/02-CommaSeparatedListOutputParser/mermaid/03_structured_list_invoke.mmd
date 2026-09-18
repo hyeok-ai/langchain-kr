@@ -1,0 +1,35 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef promptBlock fill:#1e1e1e,color:#d4d4d4,stroke:#9cdcfe,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef parserBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef structBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef lambdaBlock fill:#1e1e1e,color:#d7ba7d,stroke:#d7ba7d,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Schema["class ItemList(BaseModel):<br/>    &quot;&quot;&quot;요청한 주제에 해당하는 항목 목록&quot;&quot;&quot;<br/>    items: list[str] = Field(<br/>        description=&quot;항목 이름 목록&quot;<br/>    )"]:::schemaBlock
+
+    Prompt["list_prompt = ChatPromptTemplate.from_template(<br/>    &quot;{subject} {n}개를 나열하세요.&quot;<br/>)"]:::promptBlock
+
+    LLM["llm = init_chat_model(<br/>    &quot;openai:gpt-5.6-luna&quot;,<br/>    temperature=0<br/>)"]:::codeBlock
+
+    Struct["llm.with_structured_output(ItemList)"]:::structBlock
+    Lambda["lambda r: r.items<br/><br/>LCEL이 자동으로 RunnableLambda로 변환"]:::lambdaBlock
+
+    Chain["list_chain = list_prompt<br/>    | llm.with_structured_output(ItemList)<br/>    | (lambda r: r.items)"]:::chainBlock
+
+    Exec["list_chain.invoke({<br/>    &quot;subject&quot;: &quot;대한민국 관광명소&quot;,<br/>    &quot;n&quot;: 5<br/>})"]:::execBlock
+
+    StructResult["ItemList 객체<br/>└─ items: list[str]"]:::resultBlock
+    Result["최종 반환<br/>list[str]"]:::resultBlock
+
+    LLM == "1. 원본 LLM" ==> Struct
+    Schema == "2. ItemList 스키마를 LLM에 설정" ==> Struct
+    Prompt == "3. Prompt 객체 결합" ==> Chain
+    Struct == "4. 구조화 LLM 객체 결합" ==> Chain
+    Lambda == "5. RunnableLambda 결합" ==> Chain
+    Chain -. "조립된 list_chain" .-> Exec
+    Exec == "6. 구조화 출력" ==> StructResult
+    StructResult == "7. r.items 추출" ==> Result

@@ -1,0 +1,37 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef promptBlock fill:#1e1e1e,color:#d4d4d4,stroke:#9cdcfe,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef parserBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef structBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef lambdaBlock fill:#1e1e1e,color:#d7ba7d,stroke:#d7ba7d,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Parser["output_parser = CommaSeparatedListOutputParser()"]:::parserBlock
+
+    Format["output_parser.get_format_instructions()<br/>→ 쉼표로 구분된 목록을 요구하는 형식 지침 문자열"]:::parserBlock
+
+    PromptBase["ChatPromptTemplate.from_template(<br/>    &quot;List five {subject}.\n{format_instructions}&quot;<br/>)"]:::promptBlock
+
+    Prompt["prompt = ChatPromptTemplate.from_template(...).partial(<br/>    format_instructions=output_parser.get_format_instructions()<br/>)<br/><br/>실행 시 남은 변수:<br/>{subject}"]:::promptBlock
+
+    LLM["llm = init_chat_model(<br/>    &quot;openai:gpt-5.6-luna&quot;,<br/>    temperature=0<br/>)"]:::codeBlock
+
+    Chain["chain = prompt | llm | output_parser"]:::chainBlock
+
+    Exec["chain.invoke({<br/>    &quot;subject&quot;: &quot;대한민국 관광명소&quot;<br/>})"]:::execBlock
+
+    LLMText["LLM 출력 문자열<br/>예: 경복궁, 남산서울타워, ..."]:::resultBlock
+    Result["CommaSeparatedListOutputParser<br/>↓<br/>list[str]"]:::resultBlock
+
+    Parser == "1. Parser 객체 생성" ==> Format
+    PromptBase == "2. 원본 PromptTemplate" ==> Prompt
+    Format -. "3. partial()로 {format_instructions} 미리 주입" .-> Prompt
+    Prompt == "4. Prompt 객체 결합" ==> Chain
+    LLM == "5. LLM 객체 결합" ==> Chain
+    Parser == "6. Parser 객체 결합" ==> Chain
+    Chain -. "조립된 chain" .-> Exec
+    Exec == "7. Prompt → LLM" ==> LLMText
+    LLMText == "8. 문자열 → Parser" ==> Result
