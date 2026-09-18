@@ -1,0 +1,27 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Prompt["prompt = ChatPromptTemplate.from_template(<br/>    '다음의 이메일 내용중 중요한 내용을 추출해 주세요.\\n\\n{email_conversation}'<br/>)"]:::codeBlock
+
+    LLM["llm = init_chat_model(<br/>    'openai:gpt-5.6-luna',<br/>    temperature=0<br/>)"]:::codeBlock
+
+    Chain["chain = prompt | llm"]:::chainBlock
+
+    Data["email_conversation = '''<br/>From: 김철수 (...)<br/>To: 이은채 (...)<br/>Subject: ZENESIS ...<br/>... 이메일 본문 ...<br/>'''"]:::codeBlock
+
+    Exec["output = ''<br/>for chunk in chain.stream({<br/>    'email_conversation': email_conversation<br/>}):<br/>    print(chunk.text, end='', flush=True)<br/>    output += chunk.text"]:::execBlock
+
+    Chunk["chunk<br/>└─ AIMessageChunk<br/>   └─ .text"]:::resultBlock
+    Output["output<br/>└─ chunk.text를 순서대로 누적한 문자열"]:::resultBlock
+
+    Prompt == "1. Prompt 객체 결합" ==> Chain
+    LLM == "2. LLM 객체 결합" ==> Chain
+    Chain -. "조립된 Runnable 체인" .-> Exec
+    Data == "3. stream() 실행 시 {email_conversation} 주입" ==> Exec
+    Exec == "4. 스트림마다 반환" ==> Chunk
+    Chunk == "5. .text 누적" ==> Output
+
+    Prompt ~~~ LLM

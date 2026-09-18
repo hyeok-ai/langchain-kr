@@ -1,0 +1,32 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef structBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Schema["class EmailSummaryDict(TypedDict):<br/>    '''이메일에서 추출한 핵심 정보'''<br/>    person: Annotated[str, ..., '메일을 보낸 사람']<br/>    email: Annotated[str, ..., '메일을 보낸 사람의 이메일 주소']<br/>    subject: Annotated[str, ..., '메일 제목']<br/>    summary: Annotated[str, ..., '메일 본문을 요약한 텍스트']<br/>    date: Annotated[str, ..., '메일 본문에 언급된 미팅 날짜와 시간']"]:::schemaBlock
+
+    LLM["llm<br/>└─ init_chat_model(...)"]:::codeBlock
+
+    Structured["llm.with_structured_output(<br/>    EmailSummaryDict<br/>)"]:::structBlock
+
+    Prompt["prompt<br/>└─ ChatPromptTemplate.from_messages([...])<br/><br/>구멍:<br/>├─ {question}<br/>└─ {email_conversation}"]:::codeBlock
+
+    Chain["stream_chain = prompt<br/>    | llm.with_structured_output(<br/>        EmailSummaryDict<br/>      )"]:::chainBlock
+
+    Exec["output_dict = dict()<br/><br/>for partial in stream_chain.stream({<br/>    'email_conversation': email_conversation,<br/>    'question': '이메일 내용중 주요 내용을 추출해 주세요.'<br/>}):<br/>    output_dict = partial"]:::execBlock
+
+    Partial1["partial<br/>예: 일부 필드까지만 채워진 dict"]:::resultBlock
+    PartialN["partial<br/>예: 더 많은 필드가 채워진 dict"]:::resultBlock
+    Final["output_dict<br/>└─ 매 반복마다 partial로 덮어씀<br/>└─ 최종적으로 마지막 partial 보관"]:::resultBlock
+
+    LLM == "1. 원본 LLM" ==> Structured
+    Schema == "2. TypedDict 스키마 설정" ==> Structured
+    Prompt == "3. Prompt 객체 결합" ==> Chain
+    Structured == "4. 구조화 LLM 객체 결합" ==> Chain
+    Chain -. "조립된 stream_chain" .-> Exec
+    Exec == "5. stream()에서 순차 반환" ==> Partial1
+    Partial1 -. "다음 partial" .-> PartialN
+    PartialN == "6. 매회 output_dict = partial" ==> Final
