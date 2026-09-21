@@ -1,0 +1,26 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Pip["# %pip install -qU<br/>'langchain>=1.0'<br/>'langchain-openai>=1.0'<br/>'langgraph>=1.0'<br/>python-dotenv numpy"]:::codeBlock
+
+    Imports["import os<br/><br/>from dotenv import load_dotenv<br/>from langchain_openai import OpenAIEmbeddings<br/>from langgraph.store.base import IndexConfig<br/>from langgraph.store.memory import InMemoryStore"]:::codeBlock
+
+    Env["load_dotenv()<br/><br/>EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'text-embedding-3-small')<br/>EMBEDDING_DIMENSIONS = int(os.getenv('EMBEDDING_DIMENSIONS', '1536'))"]:::codeBlock
+
+    Embeddings["embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)"]:::chainBlock
+
+    IndexCfg["IndexConfig(<br/>    embed=embeddings,<br/>    dims=EMBEDDING_DIMENSIONS,<br/>    fields=['text'],<br/>)"]:::chainBlock
+
+    Store["memory_store = InMemoryStore(<br/>    index=IndexConfig(<br/>        embed=embeddings,<br/>        dims=EMBEDDING_DIMENSIONS,<br/>        fields=['text'],<br/>    )<br/>)"]:::execBlock
+
+    Ready["memory_store 준비 완료<br/>- text 필드를 임베딩 대상으로 사용<br/>- InMemoryStore 내부 인덱스 구성 완료"]:::resultBlock
+
+    Pip == "0. 필요 패키지" ==> Imports
+    Imports == "1. 모듈 import" ==> Env
+    Env == "2. 환경변수 로드 및 기본값 결정" ==> Embeddings
+    Embeddings == "3. 임베딩 객체를 IndexConfig에 주입" ==> IndexCfg
+    IndexCfg == "4. index 설정으로 벡터 저장소 생성" ==> Store
+    Store == "5. 이후 put/search에서 재사용" ==> Ready

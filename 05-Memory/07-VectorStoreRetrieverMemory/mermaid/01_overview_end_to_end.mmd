@@ -1,0 +1,32 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Imports["import os<br/>from dotenv import load_dotenv<br/>from langchain_openai import OpenAIEmbeddings<br/>from langgraph.store.base import IndexConfig<br/>from langgraph.store.memory import InMemoryStore<br/>from langchain.chat_models import init_chat_model"]:::codeBlock
+
+    Setup["load_dotenv()<br/><br/>EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'text-embedding-3-small')<br/>EMBEDDING_DIMENSIONS = int(os.getenv('EMBEDDING_DIMENSIONS', '1536'))<br/><br/>embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)<br/>memory_store = InMemoryStore(<br/>    index=IndexConfig(<br/>        embed=embeddings,<br/>        dims=EMBEDDING_DIMENSIONS,<br/>        fields=['text'],<br/>    )<br/>)"]:::codeBlock
+
+    Data["namespace = ('users', 'candidate-001', 'interview-memories')<br/><br/>interview_turns = [<br/>    ('자기소개 부탁드립니다.', '컴퓨터 과학을 전공한 신입 개발자이며 자바와 파이썬을 사용했습니다.'),<br/>    ('프로젝트에서 어떤 역할을 맡았나요?', '백엔드 개발자로서 서버 로직, REST API, 데이터베이스 설계를 담당했습니다.'),<br/>    ('팀 프로젝트의 어려움은 어떻게 해결했나요?', '정기 미팅으로 진행 상황을 공유하고 문제를 함께 논의했습니다.'),<br/>    ('개발자로서 강점은 무엇인가요?', '빠른 학습 능력, 문제 해결 능력, 협업을 강점으로 생각합니다.'),<br/>]"]:::codeBlock
+
+    PutLoop["for index, (human, ai) in enumerate(interview_turns, start=1):<br/>    memory_store.put(<br/>        namespace,<br/>        f'turn-{index}',<br/>        {<br/>            'text': f'면접관: {human}\\n지원자: {ai}',<br/>            'turn': index,<br/>        },<br/>    )"]:::execBlock
+
+    SearchA["query = '면접자의 전공과 사용해 본 프로그래밍 언어는 무엇인가요?'<br/>results = memory_store.search(namespace, query=query, limit=1)"]:::execBlock
+    SearchB["query = '지원자가 프로젝트에서 맡은 업무는 무엇인가요?'<br/>results = memory_store.search(namespace, query=query, limit=1)"]:::execBlock
+
+    RAG["MODEL_ID = os.getenv('CHAT_MODEL', 'openai:gpt-5.4-mini')<br/>model = init_chat_model(MODEL_ID)<br/><br/>query = '면접자가 프로젝트에서 맡은 역할을 한 문장으로 답해 주세요.'<br/>memories = memory_store.search(namespace, query=query, limit=2)<br/>context = '\n\n'.join(item.value['text'] for item in memories)<br/><br/>response = model.invoke([<br/>    {<br/>        'role': 'system',<br/>        'content': '아래 면접 기록만 근거로 답하세요...\n\n면접 기록:\n{context}',<br/>    },<br/>    {'role': 'user', 'content': query},<br/>])"]:::execBlock
+
+    OutA["for item in results:<br/>    print('score:', item.score)<br/>    print(item.value['text'])"]:::resultBlock
+    OutB["for item in results:<br/>    print('score:', item.score)<br/>    print(item.value['text'])"]:::resultBlock
+    OutC["print(response.content)"]:::resultBlock
+
+    Imports == "1. 필요한 클래스 import" ==> Setup
+    Setup == "2. 임베딩/벡터 메모리 저장소 생성" ==> Data
+    Data == "3. namespace와 면접 대화 준비" ==> PutLoop
+    PutLoop == "4. turn별 벡터 메모리 적재" ==> SearchA
+    PutLoop == "5. 동일 메모리에서 다른 질의 검색" ==> SearchB
+    PutLoop == "6. 검색 결과를 LLM 답변 생성에 재사용" ==> RAG
+    SearchA == "7. 검색 결과 출력" ==> OutA
+    SearchB == "8. 검색 결과 출력" ==> OutB
+    RAG == "9. 최종 답변 출력" ==> OutC

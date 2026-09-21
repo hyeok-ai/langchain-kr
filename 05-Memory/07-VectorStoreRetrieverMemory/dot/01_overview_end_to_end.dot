@@ -1,0 +1,28 @@
+digraph G {
+  rankdir=TB;
+  graph [bgcolor="white", pad="0.3", nodesep="0.35", ranksep="0.55", fontname="Noto Sans CJK KR"];
+  node [shape=box, style="rounded,filled", fillcolor="#1e1e1e", color="#444444", fontname="Noto Sans CJK KR", fontcolor="#d4d4d4", fontsize=11, margin="0.12,0.08"];
+  edge [fontname="Noto Sans CJK KR", color="#333333", fontsize=10, penwidth=1.4];
+  labelloc="t"; label="01. Overview - End to End Flow"; fontsize=20; fontname="Noto Sans CJK KR";
+
+  imports [label="import os\lfrom dotenv import load_dotenv\lfrom langchain_openai import OpenAIEmbeddings\lfrom langgraph.store.base import IndexConfig\lfrom langgraph.store.memory import InMemoryStore\lfrom langchain.chat_models import init_chat_model\l"];
+  setup [label="load_dotenv()\l\lEMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'text-embedding-3-small')\lEMBEDDING_DIMENSIONS = int(os.getenv('EMBEDDING_DIMENSIONS', '1536'))\l\lembeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)\lmemory_store = InMemoryStore(\l    index=IndexConfig(\l        embed=embeddings,\l        dims=EMBEDDING_DIMENSIONS,\l        fields=['text'],\l    )\l)\l"];
+  data [label="namespace = ('users', 'candidate-001', 'interview-memories')\l\linterview_turns = [\l    ('자기소개 부탁드립니다.', '컴퓨터 과학을 전공한 신입 개발자이며 자바와 파이썬을 사용했습니다.'),\l    ('프로젝트에서 어떤 역할을 맡았나요?', '백엔드 개발자로서 서버 로직, REST API, 데이터베이스 설계를 담당했습니다.'),\l    ('팀 프로젝트의 어려움은 어떻게 해결했나요?', '정기 미팅으로 진행 상황을 공유하고 문제를 함께 논의했습니다.'),\l    ('개발자로서 강점은 무엇인가요?', '빠른 학습 능력, 문제 해결 능력, 협업을 강점으로 생각합니다.'),\l]\l"];
+  putloop [label="for index, (human, ai) in enumerate(interview_turns, start=1):\l    memory_store.put(\l        namespace,\l        f'turn-{index}',\l        {'text': f'면접관: {human}\\n지원자: {ai}', 'turn': index},\l    )\l", color="#ce9178", fontcolor="#ce9178"];
+  searchA [label="query = '면접자의 전공과 사용해 본 프로그래밍 언어는 무엇인가요?'\lresults = memory_store.search(namespace, query=query, limit=1)\l", color="#ce9178", fontcolor="#ce9178"];
+  searchB [label="query = '지원자가 프로젝트에서 맡은 업무는 무엇인가요?'\lresults = memory_store.search(namespace, query=query, limit=1)\l", color="#ce9178", fontcolor="#ce9178"];
+  rag [label="MODEL_ID = os.getenv('CHAT_MODEL', 'openai:gpt-5.4-mini')\lmodel = init_chat_model(MODEL_ID)\l\lquery = '면접자가 프로젝트에서 맡은 역할을 한 문장으로 답해 주세요.'\lmemories = memory_store.search(namespace, query=query, limit=2)\lcontext = '\\n\\n'.join(item.value['text'] for item in memories)\l\lresponse = model.invoke([...system with context..., {'role': 'user', 'content': query}])\l", color="#ce9178", fontcolor="#ce9178"];
+  outA [label="for item in results:\l    print('score:', item.score)\l    print(item.value['text'])\l", color="#6a9955", fontcolor="#b5cea8"];
+  outB [label="for item in results:\l    print('score:', item.score)\l    print(item.value['text'])\l", color="#6a9955", fontcolor="#b5cea8"];
+  outC [label="print(response.content)\l", color="#6a9955", fontcolor="#b5cea8"];
+
+  imports -> setup [label="1. import 후 객체 초기화"];
+  setup -> data [label="2. 저장소 준비 완료"];
+  data -> putloop [label="3. 대화 데이터 적재"];
+  putloop -> searchA [label="4. 검색 예제 A"];
+  putloop -> searchB [label="5. 검색 예제 B"];
+  putloop -> rag [label="6. retrieval + LLM"];
+  searchA -> outA [label="7. 결과 출력"];
+  searchB -> outB [label="8. 결과 출력"];
+  rag -> outC [label="9. 답변 출력"];
+}

@@ -1,0 +1,48 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef structBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef storeBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Setup["import os<br/><br/>from dotenv import load_dotenv<br/>from langchain.chat_models import init_chat_model<br/><br/>load_dotenv()<br/><br/>MODEL_ID = os.getenv('CHAT_MODEL', 'openai:gpt-5.6-luna')<br/>model = init_chat_model(MODEL_ID)"]:::codeBlock
+
+    Schema["from pydantic import BaseModel, Field<br/><br/>class Triple(BaseModel):<br/>　subject: str = Field(description='관계의 출발 엔티티')<br/>　predicate: str = Field(description='간결한 관계 이름')<br/>　object: str = Field(description='관계의 도착 엔티티 또는 값')<br/><br/>class KnowledgeTriples(BaseModel):<br/>　triples: list[Triple]"]:::schemaBlock
+
+    Extractor["triple_extractor = model.with_structured_output(KnowledgeTriples)<br/><br/>source_text = (<br/>　'김셜리씨는 판교에 거주합니다. '<br/>　'김셜리씨는 우리 회사의 신입 디자이너입니다. '<br/>　'테디는 김셜리씨와 같은 회사에서 일하는 동료입니다.'<br/>)"]:::structBlock
+
+    ExtractInvoke["knowledge = triple_extractor.invoke([<br/>　{<br/>　　'role': 'system',<br/>　　'content': (<br/>　　　'텍스트에 명시된 사실만 지식 그래프 triple로 추출하세요. '<br/>　　　'각 관계는 subject, predicate, object로 표현하고 추측하지 마세요.'<br/>　　),<br/>　},<br/>　{'role': 'user', 'content': source_text},<br/>])<br/><br/>knowledge"]:::execBlock
+
+    Knowledge["knowledge : KnowledgeTriples<br/>└─ .triples : list[Triple]<br/>　├─ Triple(subject=..., predicate=..., object=...)<br/>　├─ Triple(...)<br/>　└─ Triple(...)"]:::resultBlock
+
+    StoreSetup["from hashlib import sha256<br/>from langgraph.store.memory import InMemoryStore<br/><br/>triple_store = InMemoryStore()<br/>namespace = ('knowledge', 'company-demo')<br/><br/>def triple_key(triple: Triple) -> str:<br/>　canonical = f'{triple.subject}|{triple.predicate}|{triple.object}'<br/>　return sha256(canonical.encode('utf-8')).hexdigest()[:16]"]:::storeBlock
+
+    StorePut["for triple in knowledge.triples:<br/>　triple_store.put(<br/>　　namespace,<br/>　　triple_key(triple),<br/>　　triple.model_dump(),<br/>　)"]:::execBlock
+
+    FactsFunc["def facts_about(entity: str) -> list[dict]:<br/>　items = triple_store.search(namespace, limit=100)<br/>　return [<br/>　　item.value<br/>　　for item in items<br/>　　if entity in item.value['subject']<br/>　　　or entity in item.value['object']<br/>　]"]:::storeBlock
+
+    Query["shirley_facts = facts_about('김셜리')<br/>shirley_facts"]:::execBlock
+
+    Facts["shirley_facts : list[dict]<br/>└─ 김셜리 문자열이 subject 또는 object에 포함된 triple만 유지"]:::resultBlock
+
+    Context["context = '\\n'.join(<br/>　f\"- {fact['subject']} --{fact['predicate']}--> {fact['object']}\"<br/>　for fact in shirley_facts<br/>)"]:::chainBlock
+
+    FinalInvoke["response = model.invoke([<br/>　{<br/>　　'role': 'system',<br/>　　'content': (<br/>　　　'아래 Relevant facts에 포함된 사실만 사용하세요. '<br/>　　　'근거가 없으면 모른다고 답하세요.\\n\\n'<br/>　　　f'Relevant facts:\\n{context}'<br/>　　),<br/>　},<br/>　{'role': 'user', 'content': '김셜리씨는 누구이며 어디에 거주합니까?'},<br/>])<br/>print(response.content)"]:::execBlock
+
+    Answer["response.content<br/>└─ 조회된 Relevant facts만 근거로 생성된 최종 답변"]:::resultBlock
+
+    Setup == "1. model 생성" ==> Extractor
+    Schema == "2. KnowledgeTriples 스키마를 model에 결합" ==> Extractor
+    Extractor -. "구조화 출력 Runnable" .-> ExtractInvoke
+    ExtractInvoke == "3. Pydantic 구조화 결과" ==> Knowledge
+    Knowledge == "4. knowledge.triples 순회" ==> StorePut
+    StoreSetup == "namespace / key / InMemoryStore 제공" ==> StorePut
+    StorePut -. "triple 저장" .-> FactsFunc
+    FactsFunc -. "조회 함수 정의" .-> Query
+    Query == "5. 김셜리 관련 edge 조회" ==> Facts
+    Facts == "6. 문자열 context 구성" ==> Context
+    Setup -. "같은 model 재사용" .-> FinalInvoke
+    Context == "7. Relevant facts에 주입" ==> FinalInvoke
+    FinalInvoke == "8. 응답" ==> Answer

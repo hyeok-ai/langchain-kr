@@ -1,0 +1,30 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef structBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Setup["import os<br/><br/>from dotenv import load_dotenv<br/>from langchain.chat_models import init_chat_model<br/><br/>load_dotenv()<br/><br/># 다른 공급자를 쓸 때는 예: anthropic:claude-... 처럼 지정할 수 있습니다.<br/>MODEL_ID = os.getenv('CHAT_MODEL', 'openai:gpt-5.6-luna')<br/>model = init_chat_model(MODEL_ID)"]:::codeBlock
+
+    TripleSchema["from pydantic import BaseModel, Field<br/><br/>class Triple(BaseModel):<br/>　subject: str = Field(description='관계의 출발 엔티티')<br/>　predicate: str = Field(description='간결한 관계 이름')<br/>　object: str = Field(description='관계의 도착 엔티티 또는 값')"]:::schemaBlock
+
+    KTSchema["class KnowledgeTriples(BaseModel):<br/>　triples: list[Triple]"]:::schemaBlock
+
+    Structured["triple_extractor = model.with_structured_output(KnowledgeTriples)"]:::structBlock
+
+    Source["source_text = (<br/>　'김셜리씨는 판교에 거주합니다. '<br/>　'김셜리씨는 우리 회사의 신입 디자이너입니다. '<br/>　'테디는 김셜리씨와 같은 회사에서 일하는 동료입니다.'<br/>)"]:::codeBlock
+
+    Messages["[<br/>　{<br/>　　'role': 'system',<br/>　　'content': (<br/>　　　'텍스트에 명시된 사실만 지식 그래프 triple로 추출하세요. '<br/>　　　'각 관계는 subject, predicate, object로 표현하고 추측하지 마세요.'<br/>　　),<br/>　},<br/>　{'role': 'user', 'content': source_text},<br/>]"]:::codeBlock
+
+    Invoke["knowledge = triple_extractor.invoke(<br/>　[ system message, user message ]<br/>)<br/><br/>knowledge"]:::execBlock
+
+    Result["knowledge : KnowledgeTriples<br/>└─ triples : list[Triple]<br/>　└─ 각 Triple은 subject / predicate / object 필드를 가짐"]:::resultBlock
+
+    Setup == "1. 원본 model" ==> Structured
+    TripleSchema == "2. Triple 타입" ==> KTSchema
+    KTSchema == "3. 출력 스키마" ==> Structured
+    Structured -. "구조화 출력 Runnable" .-> Invoke
+    Source == "4. user content" ==> Messages
+    Messages == "5. invoke 입력" ==> Invoke
+    Invoke == "6. 검증된 Pydantic 객체" ==> Result
