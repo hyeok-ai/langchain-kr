@@ -1,0 +1,33 @@
+%% 03. 두 번째 ask() — 같은 thread_id라 이전 [user1, ai1]을 복원한 뒤 user2 → ai2까지 이어지는 흐름
+graph TD
+
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#555,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef stateBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef graphBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef memoryBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    Config["config = {'configurable': {'thread_id': 'bank-account-demo'}}"]:::codeBlock
+    Ask["config = {'configurable': {'thread_id': 'bank-account-demo'}}<br/><br/><br/>def ask(text: str) -> str:<br/>    result = chat.invoke(<br/>        {'messages': [{'role': 'user', 'content': text}]},<br/>        config=config,<br/>    )<br/>    return result['messages'][-1].content"]:::codeBlock
+    CallSite["print(ask('방금 안내한 절차를 불렛포인트로 다시 정리해 주세요.'))"]:::execBlock
+    Before["첫 호출 뒤 저장된 checkpoint<br/>thread_id = bank-account-demo<br/>messages = [<br/>    user1: 계좌 개설 질문,<br/>    ai1: 첫 답변<br/>]"]:::memoryBlock
+    Invoke["chat.invoke(<br/>    {'messages': [{'role': 'user', 'content': text}]},<br/>    config=config,<br/>)"]:::execBlock
+    Restore["InMemorySaver<br/>같은 thread_id → 직전 checkpoint 자동 복원<br/>[user1, ai1]"]:::memoryBlock
+    MergeUser["MessagesState reducer<br/>복원된 [user1, ai1]<br/>+ 새 입력 [user2]<br/>→ [user1, ai1, user2]<br/><br/>user2 = '방금 안내한 절차를 불렛포인트로 다시 정리해 주세요.'"]:::stateBlock
+    CallModel["def call_model(state: MessagesState):<br/>    response = model.invoke(<br/>        [SystemMessage(content=SYSTEM_PROMPT), *state['messages']]<br/>    )<br/>    # MessagesState의 reducer가 기존 목록 뒤에 이 메시지를 추가합니다.<br/>    return {'messages': [response]}"]:::execBlock
+    ModelInput["model.invoke([<br/>    SystemMessage(content=SYSTEM_PROMPT),<br/>    *state['messages']<br/>])<br/><br/>실제 모델 입력 순서:<br/>1) system<br/>2) user1<br/>3) ai1<br/>4) user2"]:::codeBlock
+    MergeAI["return {'messages': [response]}<br/><br/>MessagesState reducer:<br/>[user1, ai1, user2] + [ai2]<br/>→ [user1, ai1, user2, ai2]"]:::stateBlock
+    Save["InMemorySaver<br/>같은 thread_id에 최신 checkpoint 저장<br/>messages = [user1, ai1, user2, ai2]"]:::memoryBlock
+    Return["result['messages'][-1].content<br/>→ ai2.content<br/>→ 이전 대화를 알고 요약 가능"]:::resultBlock
+
+    Config -- "동일 config 재사용" --> Ask
+    Ask -- "두 번째 ask(text)" --> CallSite
+    Before -. "직전 호출에서 저장된 상태" .-> Restore
+    CallSite == "새 user2만 전달" ==> Invoke
+    Invoke -- "thread_id로 lookup" --> Restore
+    Restore == "복원 상태 + 이번 입력 병합" ==> MergeUser
+    MergeUser -- "model 노드 실행" --> CallModel
+    CallModel == "전체 state['messages']를 모델에 전달" ==> ModelInput
+    ModelInput -- "response 생성" --> MergeAI
+    MergeAI == "ai2까지 병합된 state 저장" ==> Save
+    Save -- "chat.invoke result" --> Return

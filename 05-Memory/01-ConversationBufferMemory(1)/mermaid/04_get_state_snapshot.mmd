@@ -1,0 +1,21 @@
+%% 04. get_state() — 레거시 load_memory_variables() 대신 최신 checkpoint의 전체 messages 읽기
+graph TD
+
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#555,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef stateBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef graphBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef memoryBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    Config["config = {'configurable': {'thread_id': 'bank-account-demo'}}"]:::codeBlock
+    Stored["InMemorySaver에 저장된 최신 checkpoint<br/>messages = [user1, ai1, user2, ai2]"]:::memoryBlock
+    Code["snapshot = chat.get_state(config)<br/><br/>for message in snapshot.values['messages']:<br/>    print(f'[{message.type}] {message.content}\\n')"]:::execBlock
+    Get["chat.get_state(config)"]:::graphBlock
+    Snapshot["snapshot<br/>└─ StateSnapshot<br/>   └─ values['messages']<br/>      ├─ user1<br/>      ├─ ai1<br/>      ├─ user2<br/>      └─ ai2"]:::resultBlock
+    Loop["for message in snapshot.values['messages']:<br/>    print(f'[{message.type}] {message.content}\\n')<br/><br/>→ 저장된 전체 대화를 순서대로 확인"]:::resultBlock
+
+    Config -- "thread_id 지정" --> Get
+    Stored == "최신 checkpoint 조회" ==> Get
+    Code -- "실행되는 핵심 호출" --> Get
+    Get == "StateSnapshot 반환" ==> Snapshot
+    Snapshot -- "messages 순회" --> Loop

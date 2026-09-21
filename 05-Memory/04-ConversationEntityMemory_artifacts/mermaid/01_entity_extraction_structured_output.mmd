@@ -1,0 +1,35 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef schemaBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef structBlock fill:#1e1e1e,color:#4ec9b0,stroke:#4ec9b0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Env["MODEL_ID = os.getenv(<br/>    'CHAT_MODEL',<br/>    'openai:gpt-5.4-mini'<br/>)"]:::codeBlock
+
+    Model["model = init_chat_model(MODEL_ID)"]:::codeBlock
+
+    Person["class Person(BaseModel):<br/>    name: str = Field(description='대화에 등장한 사람의 이름')<br/>    occupation: str | None = Field(default=None, description='직무 또는 역할')<br/>    relationship: str | None = Field(default=None, description='다른 인물과의 관계')<br/>    plans: list[str] = Field(default_factory=list, description='명시적으로 언급된 계획')"]:::schemaBlock
+
+    People["class People(BaseModel):<br/>    people: list[Person]"]:::schemaBlock
+
+    Extractor["entity_extractor =<br/>    model.with_structured_output(People)"]:::structBlock
+
+    Conversation["conversation = (<br/>    '테디와 셜리는 한 회사에서 일하는 동료입니다. '<br/>    '테디는 개발자이고 셜리는 디자이너입니다. '<br/>    '두 사람은 회사를 그만두고 함께 창업할 계획입니다.'<br/>)"]:::codeBlock
+
+    Messages["[<br/>  {<br/>    'role': 'system',<br/>    'content': '주어진 문장에서 명시된 사람 정보만 추출하세요. 추측하지 말고, 모르는 필드는 비워 두세요.'<br/>  },<br/>  {'role': 'user', 'content': conversation}<br/>]"]:::codeBlock
+
+    Exec["extracted = entity_extractor.invoke(<br/>    messages<br/>)"]:::execBlock
+
+    Result["extracted : People<br/>└─ people: list[Person]<br/>   ├─ name<br/>   ├─ occupation<br/>   ├─ relationship<br/>   └─ plans"]:::resultBlock
+
+    Env == "1. 모델 ID 결정" ==> Model
+    Model == "2. 원본 ChatModel" ==> Extractor
+    Person == "3. Person 스키마" ==> People
+    People == "4. People 스키마를 구조화 출력으로 설정" ==> Extractor
+    Conversation == "5. user 메시지 content" ==> Messages
+    Messages == "6. invoke() 입력" ==> Exec
+    Extractor -. "조립된 구조화 출력 모델" .-> Exec
+    Exec == "7. 검증된 People 객체 반환" ==> Result
+
+    Env ~~~ Person

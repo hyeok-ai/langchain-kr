@@ -1,0 +1,37 @@
+%% 00. 전체 흐름 — 모델 초기화 → 그래프 컴파일 → 동일 스레드 메모리 → 상태 조회 → 스레드 격리
+graph TD
+
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#555,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef stateBlock fill:#1e1e1e,color:#c586c0,stroke:#c586c0,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef graphBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef memoryBlock fill:#1e1e1e,color:#dcdcaa,stroke:#dcdcaa,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+    Setup["import os<br/><br/>from dotenv import load_dotenv<br/>from langchain.chat_models import init_chat_model<br/><br/>load_dotenv()<br/><br/># 다른 공급자를 쓸 때는 예: anthropic:claude-... 처럼 지정할 수 있습니다.<br/>MODEL_ID = os.getenv('CHAT_MODEL', 'openai:gpt-5.6-luna')<br/>model = init_chat_model(MODEL_ID)"]:::codeBlock
+    GraphImports["from langchain.messages import SystemMessage<br/>from langgraph.checkpoint.memory import InMemorySaver<br/>from langgraph.graph import END, START, MessagesState, StateGraph<br/><br/>SYSTEM_PROMPT = '당신은 친절하고 정확한 은행 상담 챗봇입니다.'"]:::codeBlock
+    CallModel["def call_model(state: MessagesState):<br/>    response = model.invoke(<br/>        [SystemMessage(content=SYSTEM_PROMPT), *state['messages']]<br/>    )<br/>    # MessagesState의 reducer가 기존 목록 뒤에 이 메시지를 추가합니다.<br/>    return {'messages': [response]}"]:::execBlock
+    Builder["builder = StateGraph(MessagesState)<br/>builder.add_node('model', call_model)<br/>builder.add_edge(START, 'model')<br/>builder.add_edge('model', END)<br/><br/>chat = builder.compile(checkpointer=InMemorySaver())"]:::graphBlock
+    Checkpointer["InMemorySaver()<br/>└─ thread_id별 checkpoint/state 저장<br/>└─ 같은 thread_id → 상태 복원<br/>└─ 다른 thread_id → 별도 상태"]:::memoryBlock
+    Ask["config = {'configurable': {'thread_id': 'bank-account-demo'}}<br/><br/><br/>def ask(text: str) -> str:<br/>    result = chat.invoke(<br/>        {'messages': [{'role': 'user', 'content': text}]},<br/>        config=config,<br/>    )<br/>    return result['messages'][-1].content"]:::codeBlock
+    First["print(<br/>    ask(<br/>        '안녕하세요. 비대면으로 은행 계좌를 개설하고 싶습니다. '<br/>        '어떻게 시작해야 하나요?'<br/>    )<br/>)"]:::execBlock
+    State1["thread_id = bank-account-demo<br/>첫 호출 전: 저장 상태 없음<br/>입력 후 messages = [user1]<br/>모델 응답 후 messages = [user1, ai1]"]:::stateBlock
+    Second["print(ask('방금 안내한 절차를 불렛포인트로 다시 정리해 주세요.'))"]:::execBlock
+    State2["같은 thread_id라 checkpoint 복원<br/>기존 [user1, ai1] + 새 user2<br/>→ [user1, ai1, user2]<br/>모델 응답 병합<br/>→ [user1, ai1, user2, ai2]"]:::stateBlock
+    Snapshot["snapshot = chat.get_state(config)<br/><br/>for message in snapshot.values['messages']:<br/>    print(f'[{message.type}] {message.content}\\n')"]:::codeBlock
+    Other["other_config = {'configurable': {'thread_id': 'another-customer'}}<br/>result = chat.invoke(<br/>    {'messages': [{'role': 'user', 'content': '제가 방금 무엇을 물었나요?'}]},<br/>    config=other_config,<br/>)<br/>print(result['messages'][-1].content)"]:::execBlock
+    OtherState["thread_id = another-customer<br/>기존 bank-account-demo 상태와 완전히 분리<br/>messages는 새 사용자 메시지에서 시작"]:::stateBlock
+
+    Setup -- "model 객체를 함수 내부에서 사용" --> CallModel
+    GraphImports -- "SystemMessage / MessagesState 사용" --> CallModel
+    GraphImports -- "StateGraph / START / END / InMemorySaver 사용" --> Builder
+    CallModel == "builder.add_node('model', call_model)" ==> Builder
+    Checkpointer == "builder.compile(checkpointer=InMemorySaver())" ==> Builder
+    Builder -- "compile 결과 chat 사용" --> Ask
+    Ask -- "ask(...) 호출" --> First
+    First == "chat.invoke → reducer 병합 → checkpoint 저장" ==> State1
+    State1 -. "같은 thread_id 상태가 다음 호출의 시작점" .-> Second
+    Ask -- "동일 ask() 함수 재사용" --> Second
+    Second == "checkpoint 복원 → 새 메시지 병합 → 응답 저장" ==> State2
+    State2 -- "chat.get_state(config)" --> Snapshot
+    Builder -- "같은 compiled graph chat 사용" --> Other
+    Other == "다른 thread_id → 별도 checkpoint" ==> OtherState
