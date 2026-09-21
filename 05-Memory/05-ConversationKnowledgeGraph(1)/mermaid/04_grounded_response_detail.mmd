@@ -1,0 +1,29 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Model["MODEL_ID = os.getenv('CHAT_MODEL', 'openai:gpt-5.6-luna')<br/>model = init_chat_model(MODEL_ID)<br/><br/># cell 2에서 만든 동일 model 객체를 재사용"]:::codeBlock
+
+    Facts["shirley_facts = facts_about('김셜리')<br/><br/># 예: subject/object에 김셜리가 포함된 저장 triple들의 dict 리스트"]:::resultBlock
+
+    Context["context = '\\n'.join(<br/>　f\"- {fact['subject']} --{fact['predicate']}--> {fact['object']}\"<br/>　for fact in shirley_facts<br/>)"]:::chainBlock
+
+    SystemMsg["{<br/>　'role': 'system',<br/>　'content': (<br/>　　'아래 Relevant facts에 포함된 사실만 사용하세요. '<br/>　　'근거가 없으면 모른다고 답하세요.\\n\\n'<br/>　　f'Relevant facts:\\n{context}'<br/>　),<br/>}"]:::codeBlock
+
+    UserMsg["{<br/>　'role': 'user',<br/>　'content': '김셜리씨는 누구이며 어디에 거주합니까?'<br/>}"]:::codeBlock
+
+    Invoke["response = model.invoke([<br/>　{ system message },<br/>　{ user message },<br/>])"]:::execBlock
+
+    Print["print(response.content)"]:::execBlock
+
+    Answer["response.content<br/>└─ Relevant facts에 있는 정보만 사용하도록 지시된 최종 답변<br/>└─ 근거가 없으면 '모른다'고 답하도록 시스템 메시지에서 제한"]:::resultBlock
+
+    Facts == "1. 조회된 edge 목록" ==> Context
+    Context == "2. Relevant facts 문자열" ==> SystemMsg
+    SystemMsg == "3. system message" ==> Invoke
+    UserMsg == "4. user message" ==> Invoke
+    Model == "5. model.invoke" ==> Invoke
+    Invoke == "6. AIMessage" ==> Print
+    Print == "7. response.content" ==> Answer

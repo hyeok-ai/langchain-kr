@@ -1,0 +1,20 @@
+digraph G {
+  rankdir=TB;
+  graph [bgcolor="white", pad="0.3", nodesep="0.35", ranksep="0.55", fontname="Noto Sans CJK KR"];
+  node [shape=box, style="rounded,filled", fillcolor="#1e1e1e", color="#444444", fontname="Noto Sans CJK KR", fontcolor="#d4d4d4", fontsize=11, margin="0.12,0.08"];
+  edge [fontname="Noto Sans CJK KR", color="#333333", fontsize=10, penwidth=1.4];
+  labelloc="t"; label="04. Search Examples"; fontsize=20; fontname="Noto Sans CJK KR";
+  store [label="이미 저장된 memory_store\lnamespace = ('users', 'candidate-001', 'interview-memories')\l", color="#6a9955", fontcolor="#b5cea8"];
+  q1 [label="query = '면접자의 전공과 사용해 본 프로그래밍 언어는 무엇인가요?'\lresults = memory_store.search(namespace, query=query, limit=1)\l", color="#ce9178", fontcolor="#ce9178"];
+  p1 [label="for item in results:\l    print('score:', item.score)\l    print(item.value['text'])\l", color="#6a9955", fontcolor="#b5cea8"];
+  h1 [label="예상 hit\lturn-1\l면접관: 자기소개 부탁드립니다.\l지원자: 컴퓨터 과학을 전공한 신입 개발자이며 자바와 파이썬을 사용했습니다.\l", color="#6a9955", fontcolor="#b5cea8"];
+  q2 [label="query = '지원자가 프로젝트에서 맡은 업무는 무엇인가요?'\lresults = memory_store.search(namespace, query=query, limit=1)\l", color="#ce9178", fontcolor="#ce9178"];
+  p2 [label="for item in results:\l    print('score:', item.score)\l    print(item.value['text'])\l", color="#6a9955", fontcolor="#b5cea8"];
+  h2 [label="예상 hit\lturn-2\l면접관: 프로젝트에서 어떤 역할을 맡았나요?\l지원자: 백엔드 개발자로서 서버 로직, REST API, 데이터베이스 설계를 담당했습니다.\l", color="#6a9955", fontcolor="#b5cea8"];
+  store -> q1 [label="1. 검색 예제 A"];
+  q1 -> p1 [label="2. 결과 출력"];
+  p1 -> h1 [label="3. 어떤 turn이 잡히는지 해석"];
+  store -> q2 [label="4. 검색 예제 B"];
+  q2 -> p2 [label="5. 결과 출력"];
+  p2 -> h2 [label="6. 어떤 turn이 잡히는지 해석"];
+}

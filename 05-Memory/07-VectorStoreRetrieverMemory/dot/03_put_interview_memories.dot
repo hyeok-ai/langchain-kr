@@ -1,0 +1,18 @@
+digraph G {
+  rankdir=TB;
+  graph [bgcolor="white", pad="0.3", nodesep="0.35", ranksep="0.55", fontname="Noto Sans CJK KR"];
+  node [shape=box, style="rounded,filled", fillcolor="#1e1e1e", color="#444444", fontname="Noto Sans CJK KR", fontcolor="#d4d4d4", fontsize=11, margin="0.12,0.08"];
+  edge [fontname="Noto Sans CJK KR", color="#333333", fontsize=10, penwidth=1.4];
+  labelloc="t"; label="03. Put Interview Memories"; fontsize=20; fontname="Noto Sans CJK KR";
+  pre [label="이미 준비된 객체\l- embeddings\l- memory_store\l", color="#6a9955", fontcolor="#b5cea8"];
+  ns [label="namespace = ('users', 'candidate-001', 'interview-memories')\l"];
+  turns [label="interview_turns = [\l    ('자기소개 부탁드립니다.',\l     '컴퓨터 과학을 전공한 신입 개발자이며 자바와 파이썬을 사용했습니다.'),\l    ('프로젝트에서 어떤 역할을 맡았나요?',\l     '백엔드 개발자로서 서버 로직, REST API, 데이터베이스 설계를 담당했습니다.'),\l    ('팀 프로젝트의 어려움은 어떻게 해결했나요?',\l     '정기 미팅으로 진행 상황을 공유하고 문제를 함께 논의했습니다.'),\l    ('개발자로서 강점은 무엇인가요?',\l     '빠른 학습 능력, 문제 해결 능력, 협업을 강점으로 생각합니다.'),\l]\l"];
+  loop [label="for index, (human, ai) in enumerate(interview_turns, start=1):\l    memory_store.put(\l        namespace,\l        f'turn-{index}',\l        {'text': f'면접관: {human}\\n지원자: {ai}', 'turn': index},\l    )\l", color="#ce9178", fontcolor="#ce9178"];
+  args [label="put()에 실제로 들어가는 값\l\lnamespace = ('users', 'candidate-001', 'interview-memories')\lkey = 'turn-1' ~ 'turn-4'\lvalue['text'] = '면접관: ...\\n지원자: ...'\lvalue['turn'] = 1 ~ 4\l", color="#569cd6", fontcolor="#569cd6"];
+  stored [label="memory_store 내부 상태\lturn-1 ~ turn-4 메모리 저장\l각 항목은 text + turn 메타데이터 보유\ltext 필드 기준으로 벡터 인덱싱됨\l", color="#6a9955", fontcolor="#b5cea8"];
+  pre -> ns [label="0. 이전 셀 결과 재사용"];
+  ns -> turns [label="1. namespace + 데이터 준비"];
+  turns -> loop [label="2. enumerate 반복"];
+  loop -> args [label="3. 매 반복마다 put 호출"];
+  args -> stored [label="4. 벡터 메모리 누적 저장"];
+}

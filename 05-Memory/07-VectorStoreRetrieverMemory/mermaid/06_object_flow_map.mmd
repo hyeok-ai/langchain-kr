@@ -1,0 +1,32 @@
+graph TD
+    classDef codeBlock fill:#1e1e1e,color:#d4d4d4,stroke:#444,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef chainBlock fill:#1e1e1e,color:#569cd6,stroke:#569cd6,stroke-width:2px,text-align:center,font-family:monospace,font-size:16px;
+    classDef execBlock fill:#1e1e1e,color:#ce9178,stroke:#ce9178,stroke-width:2px,text-align:left,font-family:monospace;
+    classDef resultBlock fill:#1e1e1e,color:#b5cea8,stroke:#6a9955,stroke-width:2px,text-align:left,font-family:monospace;
+
+    Env["환경설정 객체<br/>EMBEDDING_MODEL<br/>EMBEDDING_DIMENSIONS<br/>CHAT_MODEL"]:::codeBlock
+    Emb["embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)"]:::chainBlock
+    Idx["IndexConfig(embed=embeddings, dims=EMBEDDING_DIMENSIONS, fields=['text'])"]:::chainBlock
+    Store["memory_store = InMemoryStore(index=IndexConfig(...))"]:::execBlock
+    NS["namespace = ('users', 'candidate-001', 'interview-memories')"]:::codeBlock
+    Put["memory_store.put(namespace, key, value)"]:::execBlock
+    Search["memory_store.search(namespace, query=query, limit=1 or 2)"]:::execBlock
+    Memories["results / memories<br/>각 item은 score와 value['text']를 가짐"]:::resultBlock
+    Model["model = init_chat_model(MODEL_ID)"]:::chainBlock
+    Invoke["model.invoke([system_message, user_message])"]:::execBlock
+    Answer["response.content"]:::resultBlock
+
+    Env == "1" ==> Emb
+    Emb == "2" ==> Idx
+    Idx == "3" ==> Store
+    Store == "4" ==> Put
+    NS == "5. put/search 공통 namespace" ==> Put
+    Store == "6" ==> Search
+    NS == "7" ==> Search
+    Put == "8. 저장된 turn들이 검색 대상이 됨" ==> Search
+    Search == "9. semantic search 결과" ==> Memories
+    Memories == "10. 일부는 print로 확인" ==> Answer
+    Env == "11. CHAT_MODEL 사용" ==> Model
+    Model == "12" ==> Invoke
+    Search == "13. search 결과를 context로 사용" ==> Invoke
+    Invoke == "14. 응답 객체 생성" ==> Answer
